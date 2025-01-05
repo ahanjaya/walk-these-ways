@@ -118,6 +118,7 @@ class BaseTask(gym.Env):
                     sys.exit()
                 elif evt.action == "toggle_viewer_sync" and evt.value > 0:
                     self.enable_viewer_sync = not self.enable_viewer_sync
+                self.keyboard(evt)
 
             # fetch results
             if self.device != 'cpu':

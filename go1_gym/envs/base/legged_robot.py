@@ -47,7 +47,7 @@ class LeggedRobot(BaseTask):
 
         # self.rand_buffers_eval = self._init_custom_buffers__(self.num_eval_envs)
         if not self.headless:
-            self.set_camera(self.cfg.viewer.pos, self.cfg.viewer.lookat)
+            self._init_debug()
         self._init_buffers()
 
         self._prepare_reward_function()
@@ -56,6 +56,59 @@ class LeggedRobot(BaseTask):
         self.record_eval_now = False
         self.collecting_evaluation = False
         self.num_still_evaluating = 0
+    
+    def _init_debug(self):
+        self.debug_cam_pos = gymapi.Vec3(self.cfg.viewer.pos[0], self.cfg.viewer.pos[1], self.cfg.viewer.pos[2])  # type: ignore
+        self.debug_cam_target = gymapi.Vec3(self.cfg.viewer.lookat[0], self.cfg.viewer.lookat[1], self.cfg.viewer.lookat[2])  # type: ignore
+        self.debug_cam_offset = [0, -3.0, 2.0]
+        self.debug_robot_offset = [-0.2, 0, 0]
+        self.gym.viewer_camera_look_at(
+            self.viewer, None, self.debug_cam_pos, self.debug_cam_target
+        )
+
+        self.i_follow_env = 0
+        self.camera_follow_env = True
+        self.gym.subscribe_viewer_keyboard_event(self.viewer, gymapi.KEY_F, "debug_viz")  # type: ignore
+        self.gym.subscribe_viewer_keyboard_event(self.viewer, gymapi.KEY_T, "camera_follow")  # type: ignore
+        self.gym.subscribe_viewer_keyboard_event(self.viewer, gymapi.KEY_Y, "follow_env_prev")  # type: ignore
+        self.gym.subscribe_viewer_keyboard_event(self.viewer, gymapi.KEY_U, "follow_env_next")  # type: ignore
+        self.gym.subscribe_viewer_keyboard_event(self.viewer, gymapi.KEY_R, "reset_envs")  # type: ignore
+
+        self.gym.subscribe_viewer_keyboard_event(self.viewer, gymapi.KEY_W, "update_cam_pos_w")  # type: ignore
+        self.gym.subscribe_viewer_keyboard_event(self.viewer, gymapi.KEY_S, "update_cam_pos_s")  # type: ignore
+        self.gym.subscribe_viewer_keyboard_event(self.viewer, gymapi.KEY_A, "update_cam_pos_a")  # type: ignore
+        self.gym.subscribe_viewer_keyboard_event(self.viewer, gymapi.KEY_D, "update_cam_pos_d")  # type: ignore
+        self.gym.subscribe_viewer_keyboard_event(self.viewer, gymapi.KEY_Q, "update_cam_pos_q")  # type: ignore
+        self.gym.subscribe_viewer_keyboard_event(self.viewer, gymapi.KEY_E, "update_cam_pos_e")  # type: ignore
+
+    def keyboard(self, event):
+        if event.action == "debug_viz" and event.value > 0:
+            self.debug_viz = not self.debug_viz
+            if not self.debug_viz:
+                self.gym.clear_lines(self.viewer)
+        elif event.action == "camera_follow" and event.value > 0:
+            self.flag_camera_follow = not self.flag_camera_follow
+        elif event.action == "follow_env_prev" and event.value > 0:
+            self.i_follow_env = max(0, self.i_follow_env - 1)
+        elif event.action == "follow_env_next" and event.value > 0:
+            self.i_follow_env = min(self.i_follow_env + 1, self.num_envs - 1)
+        elif event.action == "reset_envs" and event.value > 0:
+            env_ids = torch.arange(
+                0, self.num_envs, dtype=torch.int64, device=self.device
+            )
+            self.episode_length_buf[env_ids] = self.max_episode_length * 2
+        elif event.action == "update_cam_pos_w" and event.value > 0:
+            self.debug_cam_offset[1] += 0.25
+        elif event.action == "update_cam_pos_s" and event.value > 0:
+            self.debug_cam_offset[1] -= 0.25
+        elif event.action == "update_cam_pos_a" and event.value > 0:
+            self.debug_cam_offset[0] -= 0.25
+        elif event.action == "update_cam_pos_d" and event.value > 0:
+            self.debug_cam_offset[0] += 0.25
+        elif event.action == "update_cam_pos_q" and event.value > 0:
+            self.debug_cam_offset[2] += 0.25
+        elif event.action == "update_cam_pos_e" and event.value > 0:
+            self.debug_cam_offset[2] -= 0.25
 
     def step(self, actions):
         """ Apply actions, simulate, call self.post_physics_step()
@@ -130,8 +183,11 @@ class LeggedRobot(BaseTask):
         self.last_dof_vel[:] = self.dof_vel[:]
         self.last_root_vel[:] = self.root_states[:, 7:13]
 
-        if self.viewer and self.enable_viewer_sync and self.debug_viz:
-            self._draw_debug_vis()
+        if self.viewer and self.enable_viewer_sync:
+            if self.debug_viz:
+                self._draw_debug_vis()
+            if self.camera_follow_env:
+                self._update_viewer_camera()
 
         self._render_headless()
 
@@ -1741,17 +1797,52 @@ class LeggedRobot(BaseTask):
         self.gym.clear_lines(self.viewer)
         self.gym.refresh_rigid_body_state_tensor(self.sim)
         sphere_geom = gymutil.WireframeSphereGeometry(0.02, 4, 4, None, color=(1, 1, 0))
-        for i in range(self.num_envs):
-            base_pos = (self.root_states[i, :3]).cpu().numpy()
-            heights = self.measured_heights[i].cpu().numpy()
-            height_points = quat_apply_yaw(self.base_quat[i].repeat(heights.shape[0]),
-                                           self.height_points[i]).cpu().numpy()
-            for j in range(heights.shape[0]):
-                x = height_points[j, 0] + base_pos[0]
-                y = height_points[j, 1] + base_pos[1]
-                z = heights[j]
-                sphere_pose = gymapi.Transform(gymapi.Vec3(x, y, z), r=None)
-                gymutil.draw_lines(sphere_geom, self.gym, self.viewer, self.envs[i], sphere_pose)
+        i = self.i_follow_env
+        base_pos = (self.root_states[i, :3]).cpu().numpy()
+        heights = self.measured_heights[i].cpu().numpy()
+        height_points = quat_apply_yaw(self.base_quat[i].repeat(heights.shape[0]),
+                                        self.height_points[i]).cpu().numpy()
+        for j in range(heights.shape[0]):
+            x = height_points[j, 0] + base_pos[0]
+            y = height_points[j, 1] + base_pos[1]
+            z = heights[j]
+            sphere_pose = gymapi.Transform(gymapi.Vec3(x, y, z), r=None)
+            gymutil.draw_lines(sphere_geom, self.gym, self.viewer, self.envs[i], sphere_pose)
+    
+    def _update_viewer_camera(self):
+        k_smooth = 0.9
+        sim_pos = self.root_states[self.i_follow_env, :3]
+        new_cam_pos = gymapi.Vec3(  # type: ignore
+            sim_pos[0] + self.debug_cam_offset[0] + self.debug_robot_offset[0],
+            sim_pos[1] + self.debug_cam_offset[1] + self.debug_robot_offset[1],
+            sim_pos[2] + self.debug_cam_offset[2] + self.debug_robot_offset[2],
+        )
+        new_cam_target = gymapi.Vec3(  # type: ignore
+            sim_pos[0] + self.debug_robot_offset[0],
+            sim_pos[1] + self.debug_robot_offset[1],
+            sim_pos[2] + self.debug_robot_offset[2],
+        )
+        self.debug_cam_pos.x = (
+            k_smooth * self.debug_cam_pos.x + (1 - k_smooth) * new_cam_pos.x
+        )
+        self.debug_cam_pos.y = (
+            k_smooth * self.debug_cam_pos.y + (1 - k_smooth) * new_cam_pos.y
+        )
+        self.debug_cam_pos.z = (
+            k_smooth * self.debug_cam_pos.z + (1 - k_smooth) * new_cam_pos.z
+        )
+        self.debug_cam_target.x = (
+            k_smooth * self.debug_cam_target.x + (1 - k_smooth) * new_cam_target.x
+        )
+        self.debug_cam_target.y = (
+            k_smooth * self.debug_cam_target.y + (1 - k_smooth) * new_cam_target.y
+        )
+        self.debug_cam_target.z = (
+            k_smooth * self.debug_cam_target.z + (1 - k_smooth) * new_cam_target.z
+        )
+        self.gym.viewer_camera_look_at(
+            self.viewer, None, self.debug_cam_pos, self.debug_cam_target
+        )
 
     def _init_height_points(self, env_ids, cfg):
         """ Returns points at which the height measurments are sampled (in base frame)
