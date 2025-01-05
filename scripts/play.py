@@ -67,6 +67,10 @@ def load_env(label, headless=False):
     Cfg.terrain.center_robots = True
     Cfg.terrain.center_span = 1
     Cfg.terrain.teleport_robots = True
+    Cfg.terrain.terrain_proportions = [0.1, 0.1, 0.35, 0.25, 0.2, 0, 0, 0, 0.0]
+    Cfg.terrain.curriculum = False
+    Cfg.terrain.measure_heights = True
+    Cfg.rewards.use_terminal_body_height = False
 
     Cfg.domain_rand.lag_timesteps = 6
     Cfg.domain_rand.randomize_lag_timesteps = True

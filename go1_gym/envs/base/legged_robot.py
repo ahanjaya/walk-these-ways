@@ -216,6 +216,11 @@ class LeggedRobot(BaseTask):
         if len(env_ids) == 0:
             return
 
+        # update terrain curriculum
+        if self.cfg.terrain.curriculum:
+            if self.cfg.terrain.mesh_type == "trimesh":
+                self._call_train_eval(self._update_terrain_curriculum, env_ids)
+
         # reset robot states
         self._resample_commands(env_ids)
         self._call_train_eval(self._randomize_dof_props, env_ids)
@@ -1034,14 +1039,16 @@ class LeggedRobot(BaseTask):
         if self.custom_origins:
             self.root_states[env_ids] = self.base_init_state
             self.root_states[env_ids, :3] += self.env_origins[env_ids]
-            self.root_states[env_ids, 0:1] += torch_rand_float(-cfg.terrain.x_init_range,
-                                                               cfg.terrain.x_init_range, (len(env_ids), 1),
-                                                               device=self.device)
-            self.root_states[env_ids, 1:2] += torch_rand_float(-cfg.terrain.y_init_range,
-                                                               cfg.terrain.y_init_range, (len(env_ids), 1),
-                                                               device=self.device)
-            self.root_states[env_ids, 0] += cfg.terrain.x_init_offset
-            self.root_states[env_ids, 1] += cfg.terrain.y_init_offset
+            self.root_states[env_ids, :2] += torch_rand_float(-1., 1., (len(env_ids), 2), device=self.device) # xy position within 1m of the center
+
+            # self.root_states[env_ids, 0:1] += torch_rand_float(-cfg.terrain.x_init_range,
+            #                                                    cfg.terrain.x_init_range, (len(env_ids), 1),
+            #                                                    device=self.device)
+            # self.root_states[env_ids, 1:2] += torch_rand_float(-cfg.terrain.y_init_range,
+            #                                                    cfg.terrain.y_init_range, (len(env_ids), 1),
+            #                                                    device=self.device)
+            # self.root_states[env_ids, 0] += cfg.terrain.x_init_offset
+            # self.root_states[env_ids, 1] += cfg.terrain.y_init_offset
         else:
             self.root_states[env_ids] = self.base_init_state
             self.root_states[env_ids, :3] += self.env_origins[env_ids]
@@ -1782,8 +1789,8 @@ class LeggedRobot(BaseTask):
         cfg.command_ranges = vars(cfg.commands)
         if cfg.terrain.mesh_type not in ['heightfield', 'trimesh']:
             cfg.terrain.curriculum = False
-        max_episode_length_s = cfg.env.episode_length_s
-        cfg.env.max_episode_length = np.ceil(max_episode_length_s / self.dt)
+        self.max_episode_length_s = cfg.env.episode_length_s
+        cfg.env.max_episode_length = np.ceil(self.max_episode_length_s / self.dt)
         self.max_episode_length = cfg.env.max_episode_length
 
         cfg.domain_rand.push_interval = np.ceil(cfg.domain_rand.push_interval_s / self.dt)
@@ -1848,6 +1855,28 @@ class LeggedRobot(BaseTask):
         self.gym.viewer_camera_look_at(
             self.viewer, None, self.debug_cam_pos, self.debug_cam_target
         )
+
+    def _update_terrain_curriculum(self, env_ids, cfg):
+        """ Implements the game-inspired curriculum.
+
+        Args:
+            env_ids (List[int]): ids of environments being reset
+        """
+        # Implement Terrain curriculum
+        if not self.init_done:
+            # don't change on initial reset
+            return
+        distance = torch.norm(self.root_states[env_ids, :2] - self.env_origins[env_ids, :2], dim=1)
+        # robots that walked far enough progress to harder terains
+        move_up = distance > self.terrain.cfg.env_length / 2
+        # robots that walked less than half of their required distance go to simpler terrains
+        move_down = (distance < torch.norm(self.commands[env_ids, :2], dim=1)*self.max_episode_length_s*0.5) * ~move_up
+        self.terrain_levels[env_ids] += 1 * move_up - 1 * move_down
+        # Robots that solve the last level are sent to a random one
+        self.terrain_levels[env_ids] = torch.where(self.terrain_levels[env_ids]>=cfg.terrain.max_terrain_level,
+                                                   torch.randint_like(self.terrain_levels[env_ids], cfg.terrain.max_terrain_level),
+                                                   torch.clip(self.terrain_levels[env_ids], 0)) # (the minumum level is zero)
+        self.env_origins[env_ids] = cfg.terrain.terrain_origins[self.terrain_levels[env_ids], self.terrain_types[env_ids]]
 
     def _init_height_points(self, env_ids, cfg):
         """ Returns points at which the height measurments are sampled (in base frame)
