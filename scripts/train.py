@@ -245,7 +245,7 @@ if __name__ == '__main__':
                   xKey: iterations
                 - yKey: train/episode/command_area_trot/mean
                   xKey: iterations
-                - yKey: train/episode/max_terrain_height/mean
+                - yKey: train/episode/terrain_level/mean
                   xKey: iterations
                 - type: video
                   glob: "videos/*.mp4"
