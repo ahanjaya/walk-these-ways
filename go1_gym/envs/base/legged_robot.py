@@ -754,7 +754,18 @@ class LeggedRobot(BaseTask):
 
         # measure terrain heights
         if self.cfg.terrain.measure_heights:
-            self.measured_heights = self._get_heights(torch.arange(self.num_envs, device=self.device), self.cfg)
+            self.measured_heights = self._get_heights(
+                torch.arange(self.num_envs, device=self.device),
+                self.height_points,
+                self.num_height_points,
+                self.cfg
+            )
+            self.measured_heights_under_robot = self._get_heights(
+                torch.arange(self.num_envs, device=self.device),
+                self.height_points_under_robot,
+                self.num_height_points_under_robot,
+                self.cfg
+            )
 
         # push robots
         self._call_train_eval(self._push_robots, torch.arange(self.num_envs, device=self.device))
@@ -1229,8 +1240,24 @@ class LeggedRobot(BaseTask):
         self.extras = {}
 
         if self.cfg.terrain.measure_heights:
-            self.height_points = self._init_height_points(torch.arange(self.num_envs, device=self.device), self.cfg)
+            self.height_points, self.num_height_points = self._init_height_points(
+                torch.arange(self.num_envs, device=self.device),
+                self.cfg.terrain.measured_points_x,
+                self.cfg.terrain.measured_points_y,
+            )
+            self.height_points_under_robot, self.num_height_points_under_robot = self._init_height_points(
+                torch.arange(self.num_envs, device=self.device),
+                self.cfg.terrain.measured_points_robot_x,
+                self.cfg.terrain.measured_points_robot_y,
+            )
+            self.height_points_around_foot, self.num_height_points_around_foot = self._init_height_points(
+                torch.arange(self.num_envs, device=self.device),
+                self.cfg.terrain.measured_points_feet_x,
+                self.cfg.terrain.measured_points_feet_y,
+            )
+
         self.measured_heights = 0
+        self.measured_heights_robot = 0
 
         self.noise_scale_vec = self._get_noise_scale_vec(self.cfg)  # , self.eval_cfg)
         self.gravity_vec = to_torch(get_axis_params(-1., self.up_axis_idx), device=self.device).repeat(
@@ -1878,23 +1905,25 @@ class LeggedRobot(BaseTask):
                                                    torch.clip(self.terrain_levels[env_ids], 0)) # (the minumum level is zero)
         self.env_origins[env_ids] = cfg.terrain.terrain_origins[self.terrain_levels[env_ids], self.terrain_types[env_ids]]
 
-    def _init_height_points(self, env_ids, cfg):
+    def _init_height_points(self, env_ids, measured_points_x, measured_points_y):
         """ Returns points at which the height measurments are sampled (in base frame)
 
         Returns:
             [torch.Tensor]: Tensor of shape (num_envs, self.num_height_points, 3)
         """
-        y = torch.tensor(cfg.terrain.measured_points_y, device=self.device, requires_grad=False)
-        x = torch.tensor(cfg.terrain.measured_points_x, device=self.device, requires_grad=False)
+        y = torch.tensor(measured_points_y, device=self.device, requires_grad=False)
+        x = torch.tensor(measured_points_x, device=self.device, requires_grad=False)
         grid_x, grid_y = torch.meshgrid(x, y)
 
-        cfg.env.num_height_points = grid_x.numel()
-        points = torch.zeros(len(env_ids), cfg.env.num_height_points, 3, device=self.device, requires_grad=False)
+        num_height_points = grid_x.numel()
+        points = torch.zeros(len(env_ids), num_height_points, 3, device=self.device, requires_grad=False)
         points[:, :, 0] = grid_x.flatten()
         points[:, :, 1] = grid_y.flatten()
-        return points
+        return points, num_height_points
 
-    def _get_heights(self, env_ids, cfg):
+    def _get_heights(
+        self, env_ids, height_points, num_height_points, cfg, points_relative_to_robot=True
+    ):
         """ Samples heights of the terrain at required points around each robot.
             The points are offset by the base's position and rotated by the base's yaw
 
@@ -1908,12 +1937,15 @@ class LeggedRobot(BaseTask):
             [type]: [description]
         """
         if cfg.terrain.mesh_type == 'plane':
-            return torch.zeros(len(env_ids), cfg.env.num_height_points, device=self.device, requires_grad=False)
+            return torch.zeros(len(env_ids), num_height_points, device=self.device, requires_grad=False)
         elif cfg.terrain.mesh_type == 'none':
             raise NameError("Can't measure height with terrain mesh type 'none'")
 
-        points = quat_apply_yaw(self.base_quat[env_ids].repeat(1, cfg.env.num_height_points),
-                                self.height_points[env_ids]) + (self.root_states[env_ids, :3]).unsqueeze(1)
+        if points_relative_to_robot:
+            points = quat_apply_yaw(self.base_quat[env_ids].repeat(1, num_height_points),
+                            height_points[env_ids]) + (self.root_states[env_ids, :3]).unsqueeze(1)
+        else:
+            points = height_points[env_ids]
 
         points += self.terrain.cfg.border_size
         points = (points / self.terrain.cfg.horizontal_scale).long()

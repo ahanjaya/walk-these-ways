@@ -1,6 +1,7 @@
 # License: see [LICENSE, LICENSES/legged_gym/LICENSE]
 
 from params_proto import PrefixProto, ParamsProto
+import numpy as np
 
 
 class Cfg(PrefixProto, cli=False):
@@ -78,6 +79,11 @@ class Cfg(PrefixProto, cli=False):
         # 1mx1.6m rectangle (without center line)
         measured_points_x = [-0.8, -0.7, -0.6, -0.5, -0.4, -0.3, -0.2, -0.1, 0., 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8]
         measured_points_y = [-0.5, -0.4, -0.3, -0.2, -0.1, 0., 0.1, 0.2, 0.3, 0.4, 0.5]
+        measured_points_robot_x = np.arange(-0.25, 0.26, 0.05)
+        measured_points_robot_y = np.arange(-0.15, 0.16, 0.05)
+        measured_points_feet_x = np.arange(-0.1, 0.101, 0.05)
+        measured_points_feet_y = np.arange(-0.1, 0.101, 0.05)
+
         selected = False  # select a unique terrain type and pass all arguments
         terrain_kwargs = None  # Dict of arguments for selected terrain
         min_init_terrain_level = 0

@@ -58,7 +58,7 @@ class CoRLRewards:
         return torch.sum(out_of_limits, dim=1)
 
     def _reward_jump(self):
-        reference_heights = 0
+        reference_heights = torch.mean(self.env.measured_heights_under_robot, dim=1)
         body_height = self.env.base_pos[:, 2] - reference_heights
         jump_height_target = self.env.commands[:, 3] + self.env.cfg.rewards.base_height_target
         reward = - torch.square(body_height - jump_height_target)
@@ -113,6 +113,7 @@ class CoRLRewards:
         return rew_slip
 
     def _reward_feet_contact_vel(self):
+        # TODO: add reference height with current feet positions
         reference_heights = 0
         near_ground = self.env.foot_positions[:, :, 2] - reference_heights < 0.03
         foot_velocities = torch.square(torch.norm(self.env.foot_velocities[:, :, 0:3], dim=2).view(self.env.num_envs, -1))
@@ -126,10 +127,33 @@ class CoRLRewards:
 
     def _reward_feet_clearance_cmd_linear(self):
         phases = 1 - torch.abs(1.0 - torch.clip((self.env.foot_indices * 2.0) - 1.0, 0.0, 1.0) * 2.0)
-        foot_height = (self.env.foot_positions[:, :, 2]).view(self.env.num_envs, -1)# - reference_heights
-        target_height = self.env.commands[:, 9].unsqueeze(1) * phases + 0.02 # offset for foot radius 2cm
-        rew_foot_clearance = torch.square(target_height - foot_height) * (1 - self.env.desired_contact_states)
-        return torch.sum(rew_foot_clearance, dim=1)
+        
+        # foot_height = (self.env.foot_positions[:, :, 2]).view(self.env.num_envs, -1)# - reference_heights       
+        # target_height = self.env.commands[:, 9].unsqueeze(1) * phases + 0.02 # offset for foot radius 2cm
+        # rew_foot_clearance = torch.square(target_height - foot_height) * (1 - self.env.desired_contact_states)
+        # return torch.sum(rew_foot_clearance, dim=1)
+
+        reward = torch.zeros(self.env.num_envs, device=self.env.device, dtype=torch.float32)
+        for i in range(4):
+            single_foot_pos = self.env.foot_positions[:, i, :]
+            points_around_foot = (
+                single_foot_pos.unsqueeze(1) + self.env.height_points_around_foot
+            )
+            heights_under_foot = self.env._get_heights(
+                torch.arange(self.env.num_envs, device=self.env.device),
+                points_around_foot,
+                points_around_foot.shape[1],
+                self.env.cfg,
+                points_relative_to_robot=False,
+            )
+            largest_obstacle = heights_under_foot.max(dim=1).values
+
+            foot_height = single_foot_pos[:, 2] - largest_obstacle
+            target_height = self.env.commands[:, 9] * phases[:, i] + 0.02
+            rew_foot_clearance = torch.square(target_height - foot_height) * (1 - self.env.desired_contact_states[:, i])
+            reward += rew_foot_clearance
+
+        return reward
 
     def _reward_feet_impact_vel(self):
         prev_foot_velocities = self.env.prev_foot_velocities[:, :, 2].view(self.env.num_envs, -1)
