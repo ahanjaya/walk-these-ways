@@ -74,8 +74,9 @@ def train_go1(headless=True):
     Cfg.env.priv_observe_contact_forces = False
     Cfg.env.priv_observe_foot_displacement = False
     Cfg.env.priv_observe_gravity_transformed_foot_displacement = False
+    Cfg.env.priv_observe_height_scan = True
 
-    Cfg.env.num_privileged_obs = 2
+    Cfg.env.num_privileged_obs = 2 + 187
     Cfg.env.num_observation_history = 30
     Cfg.reward_scales.feet_contact_forces = 0.0
 

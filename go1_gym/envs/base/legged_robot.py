@@ -87,7 +87,7 @@ class LeggedRobot(BaseTask):
             if not self.debug_viz:
                 self.gym.clear_lines(self.viewer)
         elif event.action == "camera_follow" and event.value > 0:
-            self.flag_camera_follow = not self.flag_camera_follow
+            self.camera_follow_env = not self.camera_follow_env
         elif event.action == "follow_env_prev" and event.value > 0:
             self.i_follow_env = max(0, self.i_follow_env - 1)
         elif event.action == "follow_env_next" and event.value > 0:
@@ -542,6 +542,11 @@ class LeggedRobot(BaseTask):
         if self.cfg.env.priv_observe_desired_contact_states:
             self.privileged_obs_buf = torch.cat((self.privileged_obs_buf,
                                                  self.desired_contact_states), dim=-1)
+        
+        if self.cfg.env.priv_observe_height_scan:
+            heights = torch.clip(self.root_states[:, 2].unsqueeze(1) - 0.5 - self.measured_heights, -1.0, 1.0) * self.obs_scales.height_measurements
+            self.privileged_obs_buf = torch.cat((self.privileged_obs_buf,
+                                                 heights), dim=-1)
 
         assert self.privileged_obs_buf.shape[
                    1] == self.cfg.env.num_privileged_obs, f"num_privileged_obs ({self.cfg.env.num_privileged_obs}) != the number of privileged observations ({self.privileged_obs_buf.shape[1]}), you will discard data from the student!"

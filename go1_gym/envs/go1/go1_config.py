@@ -58,7 +58,7 @@ def config_go1(Cnfg: Union[Cfg, Meta]):
 
     _ = Cnfg.terrain
     _.mesh_type = 'trimesh'
-    _.measure_heights = False
+    _.measure_heights = True
     _.terrain_noise_magnitude = 0.0
     _.teleport_robots = True
     _.border_size = 50
