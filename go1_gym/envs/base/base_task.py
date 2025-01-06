@@ -1,13 +1,8 @@
 # License: see [LICENSE, LICENSES/legged_gym/LICENSE]
-
 import sys
-
 import gym
 import torch
 from isaacgym import gymapi, gymutil
-
-from gym import spaces
-import numpy as np
 
 
 # Base class for RL tasks
@@ -39,6 +34,7 @@ class BaseTask(gym.Env):
 
         self.num_obs = cfg.env.num_observations
         self.num_privileged_obs = cfg.env.num_privileged_obs
+        self.num_feasibility_obs = cfg.env.num_feasibility_obs
         self.num_actions = cfg.env.num_actions
 
         if eval_cfg is not None:
@@ -62,8 +58,15 @@ class BaseTask(gym.Env):
         self.reset_buf = torch.ones(self.num_envs, device=self.device, dtype=torch.long)
         self.episode_length_buf = torch.zeros(self.num_envs, device=self.device, dtype=torch.long)
         self.time_out_buf = torch.zeros(self.num_envs, device=self.device, dtype=torch.bool)
-        self.privileged_obs_buf = torch.zeros(self.num_envs, self.num_privileged_obs, device=self.device,
-                                              dtype=torch.float)
+        self.privileged_obs_buf = torch.zeros(
+            self.num_envs, self.num_privileged_obs, device=self.device, dtype=torch.float
+        )
+        self.feasibility_obs_buf = torch.zeros(
+            self.num_envs, self.num_feasibility_obs, device=self.device, dtype=torch.float
+        )
+        self.feasibility_targets_buf = torch.zeros(
+            self.num_envs, device=self.device, dtype=torch.float
+        )
         # self.num_privileged_obs = self.num_obs
 
         self.extras = {}
@@ -91,6 +94,12 @@ class BaseTask(gym.Env):
 
     def get_privileged_observations(self):
         return self.privileged_obs_buf
+    
+    def get_feasibility_observations(self):
+        return self.feasibility_obs_buf
+    
+    def get_feasibility_targets(self):
+        return self.feasibility_targets_buf
 
     def reset_idx(self, env_ids):
         """Reset selected robots"""

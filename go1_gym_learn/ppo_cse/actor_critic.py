@@ -9,9 +9,13 @@ class AC_Args(PrefixProto, cli=False):
     init_noise_std = 1.0
     actor_hidden_dims = [512, 256, 128]
     critic_hidden_dims = [512, 256, 128]
-    activation = 'elu'  # can be elu, relu, selu, crelu, lrelu, tanh, sigmoid
+    activation = "elu"  # can be elu, relu, selu, crelu, lrelu, tanh, sigmoid
 
     adaptation_module_branch_hidden_dims = [256, 128]
+
+    feasibility_hidden_dims = [128, 128]
+    feasibility_hidden_activation = "lrelu"
+    feasibility_output_activation = "sigmoid"
 
     use_decoder = False
 
@@ -19,19 +23,26 @@ class AC_Args(PrefixProto, cli=False):
 class ActorCritic(nn.Module):
     is_recurrent = False
 
-    def __init__(self, num_obs,
-                 num_privileged_obs,
-                 num_obs_history,
-                 num_actions,
-                 **kwargs):
+    def __init__(
+        self,
+        num_obs,
+        num_privileged_obs,
+        num_obs_history,
+        num_feasibility_obs,
+        num_actions,
+        **kwargs,
+    ):
         if kwargs:
-            print("ActorCritic.__init__ got unexpected arguments, which will be ignored: " + str(
-                [key for key in kwargs.keys()]))
+            print(
+                "ActorCritic.__init__ got unexpected arguments, which will be ignored: "
+                + str([key for key in kwargs.keys()])
+            )
         self.decoder = AC_Args.use_decoder
         super().__init__()
 
         self.num_obs_history = num_obs_history
         self.num_privileged_obs = num_privileged_obs
+        self.num_feasibility_obs = num_feasibility_obs
 
         activation = get_activation(AC_Args.activation)
 
@@ -76,9 +87,39 @@ class ActorCritic(nn.Module):
                 critic_layers.append(activation)
         self.critic_body = nn.Sequential(*critic_layers)
 
+        # Feasibility Network
+        feasibility_hidden_activation = get_activation(
+            AC_Args.feasibility_hidden_activation
+        )
+        feasibility_output_activation = get_activation(
+            AC_Args.feasibility_output_activation
+        )
+        feasibility_layers = []
+        feasibility_layers.append(
+            nn.Linear(self.num_feasibility_obs, AC_Args.feasibility_hidden_dims[0])
+        )
+        feasibility_layers.append(feasibility_hidden_activation)
+
+        for l in range(len(AC_Args.feasibility_hidden_dims)):
+            if l == len(AC_Args.feasibility_hidden_dims) - 1:
+                feasibility_layers.append(
+                    nn.Linear(AC_Args.feasibility_hidden_dims[l], 1)
+                )
+                feasibility_layers.append(feasibility_output_activation)
+            else:
+                feasibility_layers.append(
+                    nn.Linear(
+                        AC_Args.feasibility_hidden_dims[l],
+                        AC_Args.feasibility_hidden_dims[l + 1],
+                    )
+                )
+                feasibility_layers.append(feasibility_hidden_activation)
+        self.feasibility_module = nn.Sequential(*feasibility_layers)
+
         print(f"Adaptation Module: {self.adaptation_module}")
         print(f"Actor MLP: {self.actor_body}")
         print(f"Critic MLP: {self.critic_body}")
+        print(f"Feasibility Module: {self.feasibility_module}")
 
         # Action noise
         self.std = nn.Parameter(AC_Args.init_noise_std * torch.ones(num_actions))

@@ -1,5 +1,4 @@
 # License: see [LICENSE, LICENSES/legged_gym/LICENSE]
-
 from params_proto import PrefixProto, ParamsProto
 import numpy as np
 
@@ -61,7 +60,10 @@ class Cfg(PrefixProto, cli=False):
         priv_observe_halftime_clock_inputs = False
         priv_observe_desired_contact_states = False
         priv_observe_dummy_variable = False
-        priv_observe_height_scan = True
+        priv_observe_height_scan = False
+
+        feasible_observe_command = False
+        feasible_observe_height_scan = False
 
     class terrain(PrefixProto, cli=False):
         mesh_type = 'trimesh'  # "heightfield" # none, plane, heightfield or trimesh

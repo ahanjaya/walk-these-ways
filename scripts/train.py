@@ -1,9 +1,4 @@
 def train_go1(headless=True):
-
-    import isaacgym
-    assert isaacgym
-    import torch
-
     from go1_gym.envs.base.legged_robot_config import Cfg
     from go1_gym.envs.go1.go1_config import config_go1
     from go1_gym.envs.go1.velocity_tracking import VelocityTrackingEasyEnv
@@ -76,7 +71,11 @@ def train_go1(headless=True):
     Cfg.env.priv_observe_gravity_transformed_foot_displacement = False
     Cfg.env.priv_observe_height_scan = True
 
+    Cfg.env.feasible_observe_command = True
+    Cfg.env.feasible_observe_height_scan = True
+
     Cfg.env.num_privileged_obs = 2 + 187
+    Cfg.env.num_feasibility_obs = 15 + 187
     Cfg.env.num_observation_history = 30
     Cfg.reward_scales.feet_contact_forces = 0.0
 
@@ -148,8 +147,6 @@ def train_go1(headless=True):
     Cfg.rewards.only_positive_rewards = False
     Cfg.rewards.only_positive_rewards_ji22_style = True
     Cfg.rewards.sigma_rew_neg = 0.02
-
-
 
     Cfg.commands.lin_vel_x = [-1.0, 1.0]
     Cfg.commands.lin_vel_y = [-0.6, 0.6]
@@ -250,6 +247,8 @@ if __name__ == '__main__':
                 - type: video
                   glob: "videos/*.mp4"
                 - yKey: adaptation_loss/mean
+                  xKey: iterations
+                - yKey: feasibility_loss/mean
                   xKey: iterations
                 """, filename=".charts.yml", dedent=True)
 

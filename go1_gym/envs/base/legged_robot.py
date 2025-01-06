@@ -8,6 +8,7 @@ from isaacgym.torch_utils import *
 
 assert gymtorch
 import torch
+import numpy as np
 
 from go1_gym import MINI_GYM_ROOT_DIR
 from go1_gym.envs.base.base_task import BaseTask
@@ -136,9 +137,14 @@ class LeggedRobot(BaseTask):
         # return clipped obs, clipped states (None), rewards, dones and infos
         clip_obs = self.cfg.normalization.clip_observations
         self.obs_buf = torch.clip(self.obs_buf, -clip_obs, clip_obs)
+
         if self.privileged_obs_buf is not None:
             self.privileged_obs_buf = torch.clip(self.privileged_obs_buf, -clip_obs, clip_obs)
-        return self.obs_buf, self.privileged_obs_buf, self.rew_buf, self.reset_buf, self.extras
+        
+        if self.feasibility_obs_buf is not None:
+            self.feasibility_obs_buf = torch.clip(self.feasibility_obs_buf, -clip_obs, clip_obs)
+
+        return self.obs_buf, self.privileged_obs_buf, self.feasibility_obs_buf, self.feasibility_targets_buf, self.rew_buf, self.reset_buf, self.extras
 
     def post_physics_step(self):
         """ check terminations, compute observations and rewards
@@ -281,8 +287,7 @@ class LeggedRobot(BaseTask):
                 self.extras["train/episode"]["min_command_swing_height"] = torch.min(self.commands[:, 9])
                 self.extras["train/episode"]["max_command_swing_height"] = torch.max(self.commands[:, 9])
             for curriculum, category in zip(self.curricula, self.category_names):
-                self.extras["train/episode"][f"command_area_{category}"] = np.sum(curriculum.weights) / \
-                                                                           curriculum.weights.shape[0]
+                self.extras["train/episode"][f"command_area_{category}"] = np.sum(curriculum.weights) / curriculum.weights.shape[0]
 
             self.extras["train/episode"]["min_action"] = torch.min(self.actions)
             self.extras["train/episode"]["max_action"] = torch.max(self.actions)
@@ -329,6 +334,7 @@ class LeggedRobot(BaseTask):
         self.rew_buf[:] = 0.
         self.rew_buf_pos[:] = 0.
         self.rew_buf_neg[:] = 0.
+        self.feasibility_targets_buf[:] = 0.
         for i in range(len(self.reward_functions)):
             name = self.reward_names[i]
             rew = self.reward_functions[i]() * self.reward_scales[name]
@@ -342,6 +348,10 @@ class LeggedRobot(BaseTask):
                 self.command_sums[name] += self.reward_scales[name] + rew
             else:
                 self.command_sums[name] += rew
+                
+            if name == "tracking_lin_vel":
+                self.feasibility_targets_buf = rew
+
         if self.cfg.rewards.only_positive_rewards:
             self.rew_buf[:] = torch.clip(self.rew_buf[:], min=0.)
         elif self.cfg.rewards.only_positive_rewards_ji22_style: #TODO: update
@@ -550,11 +560,23 @@ class LeggedRobot(BaseTask):
         
         if self.cfg.env.priv_observe_height_scan:
             heights = torch.clip(self.root_states[:, 2].unsqueeze(1) - 0.5 - self.measured_heights, -1.0, 1.0) * self.obs_scales.height_measurements
-            self.privileged_obs_buf = torch.cat((self.privileged_obs_buf,
-                                                 heights), dim=-1)
+            self.privileged_obs_buf = torch.cat((
+                self.privileged_obs_buf, heights), dim=-1)
 
-        assert self.privileged_obs_buf.shape[
-                   1] == self.cfg.env.num_privileged_obs, f"num_privileged_obs ({self.cfg.env.num_privileged_obs}) != the number of privileged observations ({self.privileged_obs_buf.shape[1]}), you will discard data from the student!"
+        # feasibility obs
+        self.feasibility_obs_buf = torch.empty(self.num_envs, 0).to(self.device)
+
+        if self.cfg.env.feasible_observe_command:
+            self.feasibility_obs_buf = torch.cat((
+                self.feasibility_obs_buf,
+                self.commands * self.commands_scale,
+            ), dim=-1)
+        if self.cfg.env.feasible_observe_height_scan:
+            heights = torch.clip(self.root_states[:, 2].unsqueeze(1) - 0.5 - self.measured_heights, -1.0, 1.0) * self.obs_scales.height_measurements
+            self.feasibility_obs_buf = torch.cat((
+                self.feasibility_obs_buf, heights), dim=-1)
+
+        assert self.privileged_obs_buf.shape[1] == self.cfg.env.num_privileged_obs, f"num_privileged_obs ({self.cfg.env.num_privileged_obs}) != the number of privileged observations ({self.privileged_obs_buf.shape[1]}), you will discard data from the student!"
 
     def create_sim(self):
         """ Creates simulation, terrain and evironments

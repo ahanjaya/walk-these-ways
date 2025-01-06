@@ -20,6 +20,7 @@ class PPO_Args(PrefixProto):
     num_mini_batches = 4  # mini batch size = num_envs*nsteps / nminibatches
     learning_rate = 1.e-3  # 5.e-4
     adaptation_module_learning_rate = 1.e-3
+    feasibility_learning_rate = 1.e-4
     num_adaptation_module_substeps = 1
     schedule = 'adaptive'  # could be adaptive, fixed
     gamma = 0.99
@@ -34,7 +35,6 @@ class PPO:
     actor_critic: ActorCritic
 
     def __init__(self, actor_critic, device='cpu'):
-
         self.device = device
 
         # PPO components
@@ -42,19 +42,44 @@ class PPO:
         self.actor_critic.to(device)
         self.storage = None  # initialized later
         self.optimizer = optim.Adam(self.actor_critic.parameters(), lr=PPO_Args.learning_rate)
-        self.adaptation_module_optimizer = optim.Adam(self.actor_critic.parameters(),
-                                                      lr=PPO_Args.adaptation_module_learning_rate)
-        if self.actor_critic.decoder:
-            self.decoder_optimizer = optim.Adam(self.actor_critic.parameters(),
-                                                          lr=PPO_Args.adaptation_module_learning_rate)
-        self.transition = RolloutStorage.Transition()
 
+        self.adaptation_module_optimizer = optim.Adam(
+            self.actor_critic.adaptation_module.parameters(),
+            lr=PPO_Args.adaptation_module_learning_rate,
+        )
+        self.feasibility_module_optimizer = optim.Adam(
+            self.actor_critic.feasibility_module.parameters(),
+            lr=PPO_Args.feasibility_learning_rate,
+        )
+        if self.actor_critic.decoder:
+            self.decoder_optimizer = optim.Adam(
+                self.actor_critic.parameters(),
+                lr=PPO_Args.adaptation_module_learning_rate
+            )
+
+        self.transition = RolloutStorage.Transition()
         self.learning_rate = PPO_Args.learning_rate
 
-    def init_storage(self, num_envs, num_transitions_per_env, actor_obs_shape, privileged_obs_shape, obs_history_shape,
-                     action_shape):
-        self.storage = RolloutStorage(num_envs, num_transitions_per_env, actor_obs_shape, privileged_obs_shape,
-                                      obs_history_shape, action_shape, self.device)
+    def init_storage(
+            self, 
+            num_envs,
+            num_transitions_per_env,
+            actor_obs_shape,
+            privileged_obs_shape,
+            obs_history_shape,
+            feasibility_obs_shape,
+            action_shape,
+        ):
+        self.storage = RolloutStorage(
+            num_envs,
+            num_transitions_per_env,
+            actor_obs_shape,
+            privileged_obs_shape,
+            obs_history_shape,
+            feasibility_obs_shape,
+            action_shape,
+            self.device,
+        )
 
     def test_mode(self):
         self.actor_critic.test()
@@ -62,7 +87,7 @@ class PPO:
     def train_mode(self):
         self.actor_critic.train()
 
-    def act(self, obs, privileged_obs, obs_history):
+    def act(self, obs, privileged_obs, obs_history, feasibility_obs, feasibility_targets):
         # Compute the actions and values
         self.transition.actions = self.actor_critic.act(obs_history).detach()
         self.transition.values = self.actor_critic.evaluate(obs_history, privileged_obs).detach()
@@ -74,6 +99,9 @@ class PPO:
         self.transition.critic_observations = obs
         self.transition.privileged_observations = privileged_obs
         self.transition.observation_histories = obs_history
+        self.transition.feasibility_observations = feasibility_obs
+        self.transition.feasibility_targets = feasibility_targets
+
         return self.transition.actions
 
     def process_env_step(self, rewards, dones, infos):
@@ -98,14 +126,15 @@ class PPO:
         mean_value_loss = 0
         mean_surrogate_loss = 0
         mean_adaptation_module_loss = 0
+        mean_feasibility_module_loss = 0
         mean_decoder_loss = 0
         mean_decoder_loss_student = 0
         mean_adaptation_module_test_loss = 0
         mean_decoder_test_loss = 0
         mean_decoder_test_loss_student = 0
         generator = self.storage.mini_batch_generator(PPO_Args.num_mini_batches, PPO_Args.num_learning_epochs)
-        for obs_batch, critic_obs_batch, privileged_obs_batch, obs_history_batch, actions_batch, target_values_batch, advantages_batch, returns_batch, old_actions_log_prob_batch, \
-            old_mu_batch, old_sigma_batch, masks_batch, env_bins_batch in generator:
+        for obs_batch, critic_obs_batch, privileged_obs_batch, obs_history_batch, feasibility_obs_batch, feasibility_targets_batch, actions_batch, \
+            target_values_batch, advantages_batch, returns_batch, old_actions_log_prob_batch, old_mu_batch, old_sigma_batch, masks_batch, env_bins_batch in generator:
 
             self.actor_critic.act(obs_history_batch, masks=masks_batch)
             actions_log_prob_batch = self.actor_critic.get_actions_log_prob(actions_batch)
@@ -191,10 +220,19 @@ class PPO:
                 mean_adaptation_module_loss += adaptation_loss.item()
                 mean_adaptation_module_test_loss += adaptation_test_loss.item()
 
+            # Feasibility Module
+            feasibility_pred = self.actor_critic.feasibility_module(feasibility_obs_batch)
+            feasibility_loss = F.mse_loss(feasibility_pred, feasibility_targets_batch)
+            self.feasibility_module_optimizer.zero_grad()
+            feasibility_loss.backward()
+            self.feasibility_module_optimizer.step()
+            mean_feasibility_module_loss += feasibility_loss.item()
+
         num_updates = PPO_Args.num_learning_epochs * PPO_Args.num_mini_batches
         mean_value_loss /= num_updates
         mean_surrogate_loss /= num_updates
         mean_adaptation_module_loss /= (num_updates * PPO_Args.num_adaptation_module_substeps)
+        mean_feasibility_module_loss /= num_updates
         mean_decoder_loss /= (num_updates * PPO_Args.num_adaptation_module_substeps)
         mean_decoder_loss_student /= (num_updates * PPO_Args.num_adaptation_module_substeps)
         mean_adaptation_module_test_loss /= (num_updates * PPO_Args.num_adaptation_module_substeps)
@@ -202,4 +240,4 @@ class PPO:
         mean_decoder_test_loss_student /= (num_updates * PPO_Args.num_adaptation_module_substeps)
         self.storage.clear()
 
-        return mean_value_loss, mean_surrogate_loss, mean_adaptation_module_loss, mean_decoder_loss, mean_decoder_loss_student, mean_adaptation_module_test_loss, mean_decoder_test_loss, mean_decoder_test_loss_student
+        return mean_value_loss, mean_surrogate_loss, mean_adaptation_module_loss, mean_feasibility_module_loss, mean_decoder_loss, mean_decoder_loss_student, mean_adaptation_module_test_loss, mean_decoder_test_loss, mean_decoder_test_loss_student

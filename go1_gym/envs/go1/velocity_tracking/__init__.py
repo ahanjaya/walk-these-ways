@@ -20,13 +20,13 @@ class VelocityTrackingEasyEnv(LeggedRobot):
 
 
     def step(self, actions):
-        self.obs_buf, self.privileged_obs_buf, self.rew_buf, self.reset_buf, self.extras = super().step(actions)
-
-        self.foot_positions = self.rigid_body_state.view(self.num_envs, self.num_bodies, 13)[:, self.feet_indices,
-                               0:3]
+        self.obs_buf, self.privileged_obs_buf, self.feasibility_obs_buf, self.feasibility_targets_buf, self.rew_buf, self.reset_buf, self.extras = super().step(actions)
+        self.foot_positions = self.rigid_body_state.view(self.num_envs, self.num_bodies, 13)[:, self.feet_indices, 0:3]
 
         self.extras.update({
             "privileged_obs": self.privileged_obs_buf,
+            "feasibility_obs": self.feasibility_obs_buf,
+            "feasibility_targets": self.feasibility_targets_buf,
             "joint_pos": self.dof_pos.cpu().numpy(),
             "joint_vel": self.dof_vel.cpu().numpy(),
             "joint_pos_target": self.joint_pos_target.cpu().detach().numpy(),
