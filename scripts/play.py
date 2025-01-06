@@ -9,31 +9,31 @@ import pickle as pkl
 
 from go1_gym.envs import *
 from go1_gym.envs.base.legged_robot_config import Cfg
-from go1_gym.envs.go1.go1_config import config_go1
 from go1_gym.envs.go1.velocity_tracking import VelocityTrackingEasyEnv
+from go1_gym.utils.joystick_utils import JoystickManager
 
-from tqdm import tqdm
 
 def load_policy(logdir):
-    body = torch.jit.load(logdir + '/checkpoints/body_latest.jit')
-    import os
-    adaptation_module = torch.jit.load(logdir + '/checkpoints/adaptation_module_latest.jit')
+    body = torch.jit.load(logdir + "/checkpoints/body_latest.jit")
+    adaptation_module = torch.jit.load(
+        logdir + "/checkpoints/adaptation_module_latest.jit"
+    )
 
     def policy(obs, info={}):
         i = 0
-        latent = adaptation_module.forward(obs["obs_history"].to('cpu'))
-        action = body.forward(torch.cat((obs["obs_history"].to('cpu'), latent), dim=-1))
-        info['latent'] = latent
+        latent = adaptation_module.forward(obs["obs_history"].to("cpu"))
+        action = body.forward(torch.cat((obs["obs_history"].to("cpu"), latent), dim=-1))
+        info["latent"] = latent
         return action
 
     return policy
 
 
-def load_env(label, headless=False):
+def load_env(label, headless, joystick):
     dirs = glob.glob(f"../runs/{label}/*")
     logdir = sorted(dirs)[0]
 
-    with open(logdir + "/parameters.pkl", 'rb') as file:
+    with open(logdir + "/parameters.pkl", "rb") as file:
         pkl_cfg = pkl.load(file)
         print(pkl_cfg.keys())
         cfg = pkl_cfg["Cfg"]
@@ -64,10 +64,14 @@ def load_env(label, headless=False):
     Cfg.terrain.num_rows = 5
     Cfg.terrain.num_cols = 5
     Cfg.terrain.border_size = 0
-    Cfg.terrain.center_robots = True
+    Cfg.terrain.center_robots = False
     Cfg.terrain.center_span = 1
     Cfg.terrain.teleport_robots = True
-    Cfg.terrain.terrain_proportions = [0.1, 0.1, 0.35, 0.25, 0.2, 0, 0, 0, 0.0]
+    
+    # terrain types: [smooth slope, rough slope, stairs up, stairs down, discrete]
+    # Cfg.terrain.terrain_proportions = [0.1, 0.1, 0.35, 0.25, 0.2, 0, 0, 0, 0.0] # default
+    Cfg.terrain.terrain_proportions = [0.3, 0.3, 0.0, 0.0, 0.4, 0, 0, 0, 0.0]
+    
     Cfg.terrain.curriculum = False
     Cfg.terrain.measure_heights = True
     Cfg.rewards.use_terminal_body_height = False
@@ -75,40 +79,39 @@ def load_env(label, headless=False):
     Cfg.domain_rand.lag_timesteps = 6
     Cfg.domain_rand.randomize_lag_timesteps = True
     Cfg.control.control_type = "actuator_net"
+    Cfg.asset.terminate_after_contacts_on = []
+
+    if joystick:
+        Cfg.env.episode_length_s = 10000000000
 
     from go1_gym.envs.wrappers.history_wrapper import HistoryWrapper
 
-    env = VelocityTrackingEasyEnv(sim_device='cuda:0', headless=False, cfg=Cfg)
+    env = VelocityTrackingEasyEnv(sim_device="cuda:0", headless=headless, cfg=Cfg)
     env = HistoryWrapper(env)
 
     # load policy
-    from ml_logger import logger
-    from go1_gym_learn.ppo_cse.actor_critic import ActorCritic
-
     policy = load_policy(logdir)
 
     return env, policy
 
 
-def play_go1(headless=True):
-    from ml_logger import logger
+def play_go1(headless=True, plot=False, joystick=False):
+    # label = "gait-conditioned-agility/pretrain-v0/train"
+    label = "gait-conditioned-agility/2025-01-05/train"
+    env, policy = load_env(label, headless, joystick)
 
-    from pathlib import Path
-    from go1_gym import MINI_GYM_ROOT_DIR
-    import glob
-    import os
-
-    label = "gait-conditioned-agility/pretrain-v0/train"
-
-    env, policy = load_env(label, headless=headless)
+    if joystick:
+        joystick_ctrl = JoystickManager(display=True)
 
     num_eval_steps = 250
-    gaits = {"pronking": [0, 0, 0],
-             "trotting": [0.5, 0, 0],
-             "bounding": [0, 0.5, 0],
-             "pacing": [0, 0, 0.5]}
+    gaits = {
+        "pronking": [0, 0, 0],
+        "trotting": [0.5, 0, 0],
+        "bounding": [0, 0.5, 0],
+        "pacing": [0, 0, 0.5],
+    }
 
-    x_vel_cmd, y_vel_cmd, yaw_vel_cmd = 1.5, 0.0, 0.0
+    x_vel_cmd, y_vel_cmd, yaw_vel_cmd = 1.0, 0.0, 0.0
     body_height_cmd = 0.0
     step_frequency_cmd = 3.0
     gait = torch.tensor(gaits["trotting"])
@@ -123,9 +126,11 @@ def play_go1(headless=True):
 
     obs = env.reset()
 
-    for i in tqdm(range(num_eval_steps)):
+    i = 0
+    while i < num_eval_steps:
         with torch.no_grad():
             actions = policy(obs)
+
         env.commands[:, 0] = x_vel_cmd
         env.commands[:, 1] = y_vel_cmd
         env.commands[:, 2] = yaw_vel_cmd
@@ -137,22 +142,53 @@ def play_go1(headless=True):
         env.commands[:, 10] = pitch_cmd
         env.commands[:, 11] = roll_cmd
         env.commands[:, 12] = stance_width_cmd
+
+        if joystick:
+            joystick_ctrl.update()
+            env.commands[:, 0] = -joystick_ctrl.left_xy[1].item()
+            env.commands[:, 1] = -joystick_ctrl.left_xy[0].item()
+            env.commands[:, 2] = -joystick_ctrl.right_xy[0].item() * 0.6
+            env.commands[:, 5:8] = torch.tensor(gaits[joystick_ctrl.gait_name])
+
         obs, rew, done, info = env.step(actions)
 
-        measured_x_vels[i] = env.base_lin_vel[0, 0]
-        joint_positions[i] = env.dof_pos[0, :].cpu()
+        if plot:
+            measured_x_vels[i] = env.base_lin_vel[0, 0]
+            joint_positions[i] = env.dof_pos[0, :].cpu()
+            i += 1
+
+    if not plot:
+        return
 
     # plot target and measured forward velocity
     from matplotlib import pyplot as plt
+
     fig, axs = plt.subplots(2, 1, figsize=(12, 5))
-    axs[0].plot(np.linspace(0, num_eval_steps * env.dt, num_eval_steps), measured_x_vels, color='black', linestyle="-", label="Measured")
-    axs[0].plot(np.linspace(0, num_eval_steps * env.dt, num_eval_steps), target_x_vels, color='black', linestyle="--", label="Desired")
+    axs[0].plot(
+        np.linspace(0, num_eval_steps * env.dt, num_eval_steps),
+        measured_x_vels,
+        color="black",
+        linestyle="-",
+        label="Measured",
+    )
+    axs[0].plot(
+        np.linspace(0, num_eval_steps * env.dt, num_eval_steps),
+        target_x_vels,
+        color="black",
+        linestyle="--",
+        label="Desired",
+    )
     axs[0].legend()
     axs[0].set_title("Forward Linear Velocity")
     axs[0].set_xlabel("Time (s)")
     axs[0].set_ylabel("Velocity (m/s)")
 
-    axs[1].plot(np.linspace(0, num_eval_steps * env.dt, num_eval_steps), joint_positions, linestyle="-", label="Measured")
+    axs[1].plot(
+        np.linspace(0, num_eval_steps * env.dt, num_eval_steps),
+        joint_positions,
+        linestyle="-",
+        label="Measured",
+    )
     axs[1].set_title("Joint Positions")
     axs[1].set_xlabel("Time (s)")
     axs[1].set_ylabel("Joint Position (rad)")
@@ -161,6 +197,6 @@ def play_go1(headless=True):
     plt.show()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     # to see the environment rendering, set headless=False
-    play_go1(headless=False)
+    play_go1(headless=False, plot=False, joystick=True)
