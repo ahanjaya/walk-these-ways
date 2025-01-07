@@ -354,6 +354,11 @@ class Runner:
                         once=False,
                     )
                     logger.upload_file(
+                        file_path=feasibility_module_path,
+                        target_path=f"checkpoints/",
+                        once=False,
+                    )
+                    logger.upload_file(
                         file_path=body_path, target_path=f"checkpoints/", once=False
                     )
 
@@ -393,6 +398,11 @@ class Runner:
 
             logger.upload_file(
                 file_path=adaptation_module_path,
+                target_path=f"checkpoints/",
+                once=False,
+            )
+            logger.upload_file(
+                file_path=feasibility_module_path,
                 target_path=f"checkpoints/",
                 once=False,
             )
