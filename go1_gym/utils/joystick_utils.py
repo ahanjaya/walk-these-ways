@@ -1,7 +1,8 @@
 import copy
-import pygame
 import sys
+
 import numpy as np
+import pygame
 
 
 class DrawProperties:

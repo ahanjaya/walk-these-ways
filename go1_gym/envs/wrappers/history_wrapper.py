@@ -1,5 +1,6 @@
-import torch
 import gym
+import torch
+
 
 class HistoryWrapper(gym.Wrapper):
     def __init__(self, env):
@@ -71,11 +72,13 @@ class HistoryWrapper(gym.Wrapper):
 
 
 if __name__ == "__main__":
-    from tqdm import trange
     import matplotlib.pyplot as plt
-    from go1_gym.envs.wrappers.history_wrapper import HistoryWrapper
+    from tqdm import trange
+
     from go1_gym.envs.base.legged_robot_config import Cfg
-    from go1_gym.envs.mini_cheetah.mini_cheetah_config import config_mini_cheetah
+    from go1_gym.envs.mini_cheetah.mini_cheetah_config import \
+        config_mini_cheetah
+    from go1_gym.envs.wrappers.history_wrapper import HistoryWrapper
 
     config_mini_cheetah(Cfg)
     test_env = gym.make("VelocityTrackingEasyEnv-v0", cfg=Cfg)

@@ -4,6 +4,7 @@ import torch
 
 from go1_gym_learn.utils import split_and_pad_trajectories
 
+
 class RolloutStorage:
     class Transition:
         def __init__(self):

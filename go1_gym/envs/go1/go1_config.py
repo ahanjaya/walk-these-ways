@@ -1,5 +1,7 @@
 from typing import Union
+
 from params_proto import Meta
+
 from go1_gym.envs.base.legged_robot_config import Cfg
 
 

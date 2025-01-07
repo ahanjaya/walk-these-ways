@@ -1,8 +1,7 @@
 import torch
-import numpy as np
-from go1_gym.utils.math_utils import quat_apply_yaw, wrap_to_pi, get_scale_shift
 from isaacgym.torch_utils import *
-from isaacgym import gymapi
+from go1_gym.utils.math_utils import quat_apply_yaw
+
 
 class CoRLRewards:
     def __init__(self, env):

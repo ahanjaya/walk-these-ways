@@ -1,6 +1,5 @@
-# License: see [LICENSE, LICENSES/rsl_rl/LICENSE]
-
 import torch
+
 
 def split_and_pad_trajectories(tensor, dones):
     """ Splits trajectories at done indices. Then concatenates them and padds with zeros up to the length og the longest trajectory.

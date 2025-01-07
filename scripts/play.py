@@ -1,11 +1,11 @@
 import isaacgym
 
 assert isaacgym
-import torch
-import numpy as np
-
 import glob
 import pickle as pkl
+
+import numpy as np
+import torch
 
 from go1_gym.envs import *
 from go1_gym.envs.base.legged_robot_config import Cfg

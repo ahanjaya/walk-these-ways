@@ -1,7 +1,5 @@
-from isaacgym import gymutil, gymapi
+from isaacgym import gymapi, gymutil
 import torch
-from params_proto import Meta
-from typing import Union
 
 from go1_gym.envs.base.legged_robot import LeggedRobot
 from go1_gym.envs.base.legged_robot_config import Cfg

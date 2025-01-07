@@ -4,7 +4,7 @@ from typing import Tuple
 
 import numpy as np
 import torch
-from isaacgym.torch_utils import quat_apply, normalize
+from isaacgym.torch_utils import normalize, quat_apply
 from torch import Tensor
 
 
