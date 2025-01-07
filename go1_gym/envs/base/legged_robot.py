@@ -431,15 +431,17 @@ class LeggedRobot(BaseTask):
         self.rew_buf[:] = 0.0
         self.rew_buf_pos[:] = 0.0
         self.rew_buf_neg[:] = 0.0
-        self.feasibility_targets_buf[:] = 0.0
         for i in range(len(self.reward_functions)):
             name = self.reward_names[i]
-            rew = self.reward_functions[i]() * self.reward_scales[name]
+            raw_rew = self.reward_functions[i]() 
+            rew = raw_rew * self.reward_scales[name]
+
             self.rew_buf += rew
             if torch.sum(rew) >= 0:
                 self.rew_buf_pos += rew
             elif torch.sum(rew) <= 0:
                 self.rew_buf_neg += rew
+
             self.episode_sums[name] += rew
             if name in [
                 "tracking_contacts_shaped_force",
@@ -450,7 +452,7 @@ class LeggedRobot(BaseTask):
                 self.command_sums[name] += rew
 
             if name == "tracking_lin_vel":
-                self.feasibility_targets_buf = rew
+                self.feasibility_targets_buf = raw_rew
 
         if self.cfg.rewards.only_positive_rewards:
             self.rew_buf[:] = torch.clip(self.rew_buf[:], min=0.0)

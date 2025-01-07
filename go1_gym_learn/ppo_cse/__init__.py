@@ -214,7 +214,6 @@ class Runner:
                             logger.store_metrics(**infos["eval/episode"])
 
                     if "curriculum" in infos:
-
                         cur_reward_sum += rewards
                         cur_episode_length += 1
 
