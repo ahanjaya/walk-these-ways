@@ -37,13 +37,14 @@ def config_go1(Cnfg: Union[Cfg, Meta]):
     _.decimation = 4
 
     _ = Cnfg.asset
-    _.file = '{MINI_GYM_ROOT_DIR}/resources/robots/go1/urdf/go1.urdf'
-    # _.file = '{MINI_GYM_ROOT_DIR}/resources/robots/a1_description/urdf/a1_with_head.urdf'
+    # _.file = '{MINI_GYM_ROOT_DIR}/resources/robots/go1/urdf/go1.urdf'
+    _.file = '{MINI_GYM_ROOT_DIR}/resources/robots/a1_description/urdf/a1_with_head.urdf'
     _.foot_name = "foot"
     _.penalize_contacts_on = ["thigh", "calf"]
     _.terminate_after_contacts_on = ["base"]
     _.self_collisions = 0  # 1 to disable, 0 to enable...bitwise filter
-    _.flip_visual_attachments = False
+    # _.flip_visual_attachments = False
+    _.flip_visual_attachments = True
     _.fix_base_link = False
 
     _ = Cnfg.rewards
