@@ -123,7 +123,6 @@ class Runner:
         self,
         num_learning_iterations,
         init_at_random_ep_len=False,
-        eval_freq=100,
         curriculum_dump_freq=500,
         eval_expert=False,
     ):
@@ -323,14 +322,14 @@ class Runner:
                     path = "./tmp/legged_data"
                     os.makedirs(path, exist_ok=True)
 
-                    adaptation_module_path = f"{path}/adaptation_module_latest.jit"
-                    adaptation_module = copy.deepcopy(
-                        self.alg.actor_critic.adaptation_module
-                    ).to("cpu")
-                    traced_script_adaptation_module = torch.jit.script(
-                        adaptation_module
-                    )
-                    traced_script_adaptation_module.save(adaptation_module_path)
+                    # adaptation_module_path = f"{path}/adaptation_module_latest.jit"
+                    # adaptation_module = copy.deepcopy(
+                    #     self.alg.actor_critic.adaptation_module
+                    # ).to("cpu")
+                    # traced_script_adaptation_module = torch.jit.script(
+                    #     adaptation_module
+                    # )
+                    # traced_script_adaptation_module.save(adaptation_module_path)
 
                     feasibility_module_path = f"{path}/feasibility_module_latest.jit"
                     feasibility_module = copy.deepcopy(
@@ -348,11 +347,11 @@ class Runner:
                     traced_script_body_module = torch.jit.script(body_model)
                     traced_script_body_module.save(body_path)
 
-                    logger.upload_file(
-                        file_path=adaptation_module_path,
-                        target_path=f"checkpoints/",
-                        once=False,
-                    )
+                    # logger.upload_file(
+                    #     file_path=adaptation_module_path,
+                    #     target_path=f"checkpoints/",
+                    #     once=False,
+                    # )
                     logger.upload_file(
                         file_path=feasibility_module_path,
                         target_path=f"checkpoints/",
@@ -374,15 +373,14 @@ class Runner:
             )
 
             path = "./tmp/legged_data"
-
             os.makedirs(path, exist_ok=True)
 
-            adaptation_module_path = f"{path}/adaptation_module_latest.jit"
-            adaptation_module = copy.deepcopy(
-                self.alg.actor_critic.adaptation_module
-            ).to("cpu")
-            traced_script_adaptation_module = torch.jit.script(adaptation_module)
-            traced_script_adaptation_module.save(adaptation_module_path)
+            # adaptation_module_path = f"{path}/adaptation_module_latest.jit"
+            # adaptation_module = copy.deepcopy(
+            #     self.alg.actor_critic.adaptation_module
+            # ).to("cpu")
+            # traced_script_adaptation_module = torch.jit.script(adaptation_module)
+            # traced_script_adaptation_module.save(adaptation_module_path)
 
             feasibility_module_path = f"{path}/feasibility_module_latest.jit"
             feasibility_module = copy.deepcopy(
@@ -396,11 +394,11 @@ class Runner:
             traced_script_body_module = torch.jit.script(body_model)
             traced_script_body_module.save(body_path)
 
-            logger.upload_file(
-                file_path=adaptation_module_path,
-                target_path=f"checkpoints/",
-                once=False,
-            )
+            # logger.upload_file(
+            #     file_path=adaptation_module_path,
+            #     target_path=f"checkpoints/",
+            #     once=False,
+            # )
             logger.upload_file(
                 file_path=feasibility_module_path,
                 target_path=f"checkpoints/",

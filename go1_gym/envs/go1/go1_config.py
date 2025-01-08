@@ -65,8 +65,8 @@ def config_go1(Cnfg: Union[Cfg, Meta]):
     _.teleport_robots = True
     _.border_size = 25
 
-    # _.terrain_proportions = [0, 0, 0, 0, 0, 0, 0, 0, 1.0]
-    _.terrain_proportions = [0.1, 0.1, 0.35, 0.25, 0.2, 0, 0, 0, 0.0]
+    _.terrain_proportions = [0, 0, 0, 0, 0, 0, 0, 0, 1.0]
+    # _.terrain_proportions = [0.1, 0.1, 0.35, 0.25, 0.2, 0, 0, 0, 0.0]
     _.curriculum = True
 
     _ = Cnfg.env

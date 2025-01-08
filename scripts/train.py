@@ -74,7 +74,7 @@ def train_go1(headless=True):
     Cfg.env.feasible_observe_command = True
     Cfg.env.feasible_observe_height_scan = True
 
-    Cfg.env.num_privileged_obs = 2 + 187
+    Cfg.env.num_privileged_obs = 2
     Cfg.env.num_feasibility_obs = 15 + 187
     Cfg.env.num_observation_history = 30
     Cfg.reward_scales.feet_contact_forces = 0.0
@@ -211,7 +211,7 @@ def train_go1(headless=True):
     env = HistoryWrapper(env)
     gpu_id = 0
     runner = Runner(env, device=f"cuda:{gpu_id}")
-    runner.learn(num_learning_iterations=100000, init_at_random_ep_len=True, eval_freq=100)
+    runner.learn(num_learning_iterations=100000, init_at_random_ep_len=True)
 
 
 if __name__ == '__main__':

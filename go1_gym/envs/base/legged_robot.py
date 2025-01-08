@@ -813,18 +813,18 @@ class LeggedRobot(BaseTask):
                 (self.privileged_obs_buf, self.desired_contact_states), dim=-1
             )
 
-        if self.cfg.env.priv_observe_height_scan:
-            heights = (
-                torch.clip(
-                    self.root_states[:, 2].unsqueeze(1) - 0.5 - self.measured_heights,
-                    -1.0,
-                    1.0,
-                )
-                * self.obs_scales.height_measurements
-            )
-            self.privileged_obs_buf = torch.cat(
-                (self.privileged_obs_buf, heights), dim=-1
-            )
+        # if self.cfg.env.priv_observe_height_scan:
+        #     heights = (
+        #         torch.clip(
+        #             self.root_states[:, 2].unsqueeze(1) - 0.5 - self.measured_heights,
+        #             -1.0,
+        #             1.0,
+        #         )
+        #         * self.obs_scales.height_measurements
+        #     )
+        #     self.privileged_obs_buf = torch.cat(
+        #         (self.privileged_obs_buf, heights), dim=-1
+        #     )
 
         # feasibility obs
         self.feasibility_obs_buf = torch.empty(self.num_envs, 0).to(self.device)

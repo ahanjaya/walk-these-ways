@@ -15,15 +15,16 @@ from go1_gym.utils.joystick_utils import JoystickManager
 
 def load_policy(logdir):
     body = torch.jit.load(logdir + "/checkpoints/body_latest.jit")
-    adaptation_module = torch.jit.load(
-        logdir + "/checkpoints/adaptation_module_latest.jit"
-    )
+    # adaptation_module = torch.jit.load(
+    #     logdir + "/checkpoints/adaptation_module_latest.jit"
+    # )
 
     def policy(obs, info={}):
-        i = 0
-        latent = adaptation_module.forward(obs["obs_history"].to("cpu"))
-        action = body.forward(torch.cat((obs["obs_history"].to("cpu"), latent), dim=-1))
-        info["latent"] = latent
+        # latent = adaptation_module.forward(obs["obs_history"].to("cpu"))
+        # action = body.forward(torch.cat((obs["obs_history"].to("cpu"), latent), dim=-1))
+        # info["latent"] = latent
+
+        action = body.forward(obs["obs_history"].to("cpu"))
         return action
 
     return policy
@@ -31,7 +32,8 @@ def load_policy(logdir):
 
 def load_env(label, headless, joystick):
     dirs = glob.glob(f"../runs/{label}/*")
-    logdir = sorted(dirs)[0]
+    logdir = sorted(dirs)[-1]
+    print(f"Loading from {logdir}")
 
     with open(logdir + "/parameters.pkl", "rb") as file:
         pkl_cfg = pkl.load(file)
@@ -70,7 +72,8 @@ def load_env(label, headless, joystick):
     
     # terrain types: [smooth slope, rough slope, stairs up, stairs down, discrete]
     # Cfg.terrain.terrain_proportions = [0.1, 0.1, 0.35, 0.25, 0.2, 0, 0, 0, 0.0] # default
-    Cfg.terrain.terrain_proportions = [0.3, 0.3, 0.0, 0.0, 0.4, 0, 0, 0, 0.0]
+    # Cfg.terrain.terrain_proportions = [0.3, 0.3, 0.0, 0.0, 0.4, 0, 0, 0, 0.0]
+    Cfg.terrain.terrain_proportions = [0.0, 0.0, 0.0, 0.0, 0.0, 0, 0, 0, 1.0]
     
     Cfg.terrain.curriculum = False
     Cfg.terrain.measure_heights = True
@@ -97,7 +100,7 @@ def load_env(label, headless, joystick):
 
 def play_go1(headless=True, plot=False, joystick=False):
     # label = "gait-conditioned-agility/pretrain-v0/train"
-    label = "gait-conditioned-agility/2025-01-05/train"
+    label = "gait-conditioned-agility/2025-01-08/train"
     env, policy = load_env(label, headless, joystick)
 
     if joystick:
