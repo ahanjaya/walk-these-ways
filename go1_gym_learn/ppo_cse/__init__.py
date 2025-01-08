@@ -8,6 +8,7 @@ from ml_logger import logger
 from params_proto import PrefixProto
 
 from .actor_critic import ActorCritic
+from .feasibility import FeasibilityNet
 from .rollout_storage import RolloutStorage
 
 
@@ -70,8 +71,11 @@ class Runner:
             self.env.num_obs,
             self.env.num_privileged_obs,
             self.env.num_obs_history,
-            self.env.num_feasibility_obs,
             self.env.num_actions,
+        ).to(self.device)
+
+        feasibility_net = FeasibilityNet(
+            self.env.num_feasibility_obs
         ).to(self.device)
 
         if RunnerArgs.resume:
@@ -98,7 +102,7 @@ class Runner:
                     ]
                     print(gait_name)
 
-        self.alg = PPO(actor_critic, device=self.device)
+        self.alg = PPO(actor_critic, feasibility_net, device=self.device)
         self.num_steps_per_env = RunnerArgs.num_steps_per_env
 
         # init storage and model
@@ -333,7 +337,7 @@ class Runner:
 
                     feasibility_module_path = f"{path}/feasibility_module_latest.jit"
                     feasibility_module = copy.deepcopy(
-                        self.alg.actor_critic.feasibility_module
+                        self.alg.feasibility_net
                     ).to("cpu")
                     traced_script_feasibility_module = torch.jit.script(
                         feasibility_module
@@ -384,7 +388,7 @@ class Runner:
 
             feasibility_module_path = f"{path}/feasibility_module_latest.jit"
             feasibility_module = copy.deepcopy(
-                self.alg.actor_critic.feasibility_module
+                self.alg.feasibility_net
             ).to("cpu")
             traced_script_feasibility_module = torch.jit.script(feasibility_module)
             traced_script_feasibility_module.save(feasibility_module_path)

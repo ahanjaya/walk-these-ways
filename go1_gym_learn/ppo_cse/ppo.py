@@ -33,13 +33,17 @@ class PPO_Args(PrefixProto):
 
 class PPO:
     actor_critic: ActorCritic
-
-    def __init__(self, actor_critic, device="cpu"):
+    def __init__(self, actor_critic, feasibility_net, device="cpu"):
         self.device = device
 
         # PPO components
         self.actor_critic = actor_critic
         self.actor_critic.to(device)
+
+        # Feasibility Module
+        self.feasibility_net = feasibility_net
+        self.feasibility_net.to(device)
+
         self.storage = None  # initialized later
         self.optimizer = optim.Adam(
             self.actor_critic.parameters(), lr=PPO_Args.learning_rate
@@ -50,7 +54,7 @@ class PPO:
         #     lr=PPO_Args.adaptation_module_learning_rate,
         # )
         self.feasibility_module_optimizer = optim.Adam(
-            self.actor_critic.feasibility_module.parameters(),
+            self.feasibility_net.parameters(),
             lr=PPO_Args.feasibility_learning_rate,
         )
         if self.actor_critic.decoder:
@@ -277,7 +281,7 @@ class PPO:
             #     mean_adaptation_module_test_loss += adaptation_test_loss.item()
 
             # Feasibility Module
-            feasibility_pred = self.actor_critic.feasibility_module(
+            feasibility_pred = self.feasibility_net(
                 feasibility_obs_batch
             )
             feasibility_loss = F.mse_loss(feasibility_pred, feasibility_targets_batch)
