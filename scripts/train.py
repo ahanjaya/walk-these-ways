@@ -74,7 +74,7 @@ def train_go1(headless=True):
     Cfg.env.feasible_observe_command = True
     Cfg.env.feasible_observe_height_scan = True
 
-    Cfg.env.num_privileged_obs = 2
+    Cfg.env.num_privileged_obs = 2 + 187
     Cfg.env.num_feasibility_obs = 15 + 187
     Cfg.env.num_observation_history = 30
     Cfg.reward_scales.feet_contact_forces = 0.0

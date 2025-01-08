@@ -72,8 +72,8 @@ def load_env(label, headless, joystick):
     
     # terrain types: [smooth slope, rough slope, stairs up, stairs down, discrete]
     # Cfg.terrain.terrain_proportions = [0.1, 0.1, 0.35, 0.25, 0.2, 0, 0, 0, 0.0] # default
-    # Cfg.terrain.terrain_proportions = [0.3, 0.3, 0.0, 0.0, 0.4, 0, 0, 0, 0.0]
-    Cfg.terrain.terrain_proportions = [0.0, 0.0, 0.0, 0.0, 0.0, 0, 0, 0, 1.0]
+    Cfg.terrain.terrain_proportions = [0.3, 0.3, 0.0, 0.0, 0.4, 0, 0, 0, 0.0]
+    # Cfg.terrain.terrain_proportions = [0.0, 0.0, 0.0, 0.0, 0.0, 0, 0, 0, 1.0]
     
     Cfg.terrain.curriculum = False
     Cfg.terrain.measure_heights = True
