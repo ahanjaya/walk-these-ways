@@ -2,7 +2,8 @@ import isaacgym
 
 assert isaacgym
 import glob
-import pickle as pkl
+import pickle
+import time
 
 import numpy as np
 import torch
@@ -13,8 +14,17 @@ from go1_gym.envs.go1.velocity_tracking import VelocityTrackingEasyEnv
 from go1_gym.utils.joystick_utils import JoystickManager
 
 
+def real_time_sleep(start_time, target_dt):
+    _end = time.perf_counter()
+    elapsed = _end - start_time
+    diff_to_target_period = target_dt - elapsed
+    if diff_to_target_period > 0.0:
+        time.sleep(diff_to_target_period)
+
+
 def load_policy(logdir):
-    body = torch.jit.load(logdir + "/checkpoints/body_latest.jit")
+    body = torch.jit.load(logdir + "/checkpoints/wtw_policy.pt")
+    feasibility = torch.jit.load(logdir + "/checkpoints/wtw_feasibility.pt")
     # adaptation_module = torch.jit.load(
     #     logdir + "/checkpoints/adaptation_module_latest.jit"
     # )
@@ -26,8 +36,11 @@ def load_policy(logdir):
 
         action = body.forward(obs["obs_history"].to("cpu"))
         return action
+    
+    def feasibility_net(obs, info={}):
+        return feasibility.forward(obs["feasibility_obs"].to("cpu"))
 
-    return policy
+    return policy, feasibility_net
 
 
 def load_env(label, headless, joystick):
@@ -36,7 +49,7 @@ def load_env(label, headless, joystick):
     print(f"Loading from {logdir}")
 
     with open(logdir + "/parameters.pkl", "rb") as file:
-        pkl_cfg = pkl.load(file)
+        pkl_cfg = pickle.load(file)
         print(pkl_cfg.keys())
         cfg = pkl_cfg["Cfg"]
         print(cfg.keys())
@@ -93,15 +106,15 @@ def load_env(label, headless, joystick):
     env = HistoryWrapper(env)
 
     # load policy
-    policy = load_policy(logdir)
+    policy, feasibility_net = load_policy(logdir)
 
-    return env, policy
+    return env, policy, feasibility_net
 
 
-def play_go1(headless=True, plot=False, joystick=False):
+def play_go1(headless, plot, joystick, real_time):
     # label = "gait-conditioned-agility/pretrain-v0/train"
     label = "gait-conditioned-agility/2025-01-08/train"
-    env, policy = load_env(label, headless, joystick)
+    env, policy, feasibility_net = load_env(label, headless, joystick)
 
     if joystick:
         joystick_ctrl = JoystickManager(display=True)
@@ -131,8 +144,11 @@ def play_go1(headless=True, plot=False, joystick=False):
 
     i = 0
     while i < num_eval_steps:
+        start_t = time.perf_counter()
+
         with torch.no_grad():
             actions = policy(obs)
+            feasibility_pred = feasibility_net(obs)
 
         env.commands[:, 0] = x_vel_cmd
         env.commands[:, 1] = y_vel_cmd
@@ -153,12 +169,17 @@ def play_go1(headless=True, plot=False, joystick=False):
             env.commands[:, 2] = -joystick_ctrl.right_xy[0].item() * 0.6
             env.commands[:, 5:8] = torch.tensor(gaits[joystick_ctrl.gait_name])
 
+            joystick_ctrl.feasibility_value = feasibility_pred[0].item()
+            joystick_ctrl.feasibility_gt = obs["feasibility_targets"][0].item()
         obs, rew, done, info = env.step(actions)
 
         if plot:
             measured_x_vels[i] = env.base_lin_vel[0, 0]
             joint_positions[i] = env.dof_pos[0, :].cpu()
             i += 1
+        
+        if real_time:
+            real_time_sleep(start_t, env.dt)
 
     if not plot:
         return
@@ -201,5 +222,4 @@ def play_go1(headless=True, plot=False, joystick=False):
 
 
 if __name__ == "__main__":
-    # to see the environment rendering, set headless=False
-    play_go1(headless=False, plot=False, joystick=True)
+    play_go1(headless=False, plot=False, joystick=True, real_time=True)
