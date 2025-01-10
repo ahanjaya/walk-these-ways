@@ -335,7 +335,7 @@ class Runner:
                     # )
                     # traced_script_adaptation_module.save(adaptation_module_path)
 
-                    feasibility_module_path = f"{path}/feasibility_module_latest.jit"
+                    feasibility_module_path = f"{path}/wtw_feasibility.pt"
                     feasibility_module = copy.deepcopy(
                         self.alg.feasibility_net
                     ).to("cpu")
@@ -344,7 +344,7 @@ class Runner:
                     )
                     traced_script_feasibility_module.save(feasibility_module_path)
 
-                    body_path = f"{path}/body_latest.jit"
+                    body_path = f"{path}/wtw_policy.pt"
                     body_model = copy.deepcopy(self.alg.actor_critic.actor_body).to(
                         "cpu"
                     )
