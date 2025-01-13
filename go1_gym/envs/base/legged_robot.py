@@ -264,9 +264,7 @@ class LeggedRobot(BaseTask):
             return
 
         # update terrain curriculum
-        if self.cfg.terrain.curriculum:
-            if self.cfg.terrain.mesh_type == "trimesh":
-                self._call_train_eval(self._update_terrain_curriculum, env_ids)
+        self._update_terrain_curriculum(env_ids)
 
         # reset robot states
         self._resample_commands(env_ids)
@@ -1154,6 +1152,7 @@ class LeggedRobot(BaseTask):
             .nonzero(as_tuple=False)
             .flatten()
         )
+        self._update_terrain_curriculum(env_ids)
         self._resample_commands(env_ids)
         self._step_contact_targets()
 
@@ -2812,7 +2811,7 @@ class LeggedRobot(BaseTask):
             # create a grid of robots
             num_cols = np.floor(np.sqrt(len(env_ids)))
             num_rows = np.ceil(self.num_envs / num_cols)
-            xx, yy = torch.meshgrid(torch.arange(num_rows), torch.arange(num_cols))
+            xx, yy = torch.meshgrid(torch.arange(num_rows, device=self.device), torch.arange(num_cols, device=self.device))
             spacing = cfg.env.env_spacing
             self.env_origins[env_ids, 0] = spacing * xx.flatten()[: len(env_ids)]
             self.env_origins[env_ids, 1] = spacing * yy.flatten()[: len(env_ids)]
@@ -2908,7 +2907,7 @@ class LeggedRobot(BaseTask):
             self.viewer, None, self.debug_cam_pos, self.debug_cam_target
         )
 
-    def _update_terrain_curriculum(self, env_ids, cfg):
+    def _update_terrain_curriculum(self, env_ids):
         """Implements the game-inspired curriculum.
 
         Args:
@@ -2918,11 +2917,18 @@ class LeggedRobot(BaseTask):
         if not self.init_done:
             # don't change on initial reset
             return
+        
+        if not self.cfg.terrain.mesh_type == "trimesh":
+            return
+        
+        if not self.cfg.terrain.curriculum:
+            return
+
         distance = torch.norm(
             self.root_states[env_ids, :2] - self.env_origins[env_ids, :2], dim=1
         )
         # robots that walked far enough progress to harder terains
-        move_up = distance > self.terrain.cfg.env_length / 2
+        move_up = distance > self.terrain.cfg.env_length / 3
         # robots that walked less than half of their required distance go to simpler terrains
         move_down = (
             distance
@@ -2933,13 +2939,13 @@ class LeggedRobot(BaseTask):
         self.terrain_levels[env_ids] += 1 * move_up - 1 * move_down
         # Robots that solve the last level are sent to a random one
         self.terrain_levels[env_ids] = torch.where(
-            self.terrain_levels[env_ids] >= cfg.terrain.max_terrain_level,
+            self.terrain_levels[env_ids] >= self.cfg.terrain.max_terrain_level,
             torch.randint_like(
-                self.terrain_levels[env_ids], cfg.terrain.max_terrain_level
+                self.terrain_levels[env_ids], self.cfg.terrain.max_terrain_level
             ),
             torch.clip(self.terrain_levels[env_ids], 0),
         )  # (the minumum level is zero)
-        self.env_origins[env_ids] = cfg.terrain.terrain_origins[
+        self.env_origins[env_ids] = self.cfg.terrain.terrain_origins[
             self.terrain_levels[env_ids], self.terrain_types[env_ids]
         ]
 
