@@ -66,8 +66,6 @@ def load_env(label, headless, joystick):
     Cfg.domain_rand.randomize_restitution = False
     Cfg.domain_rand.randomize_motor_offset = False
     Cfg.domain_rand.randomize_motor_strength = False
-    Cfg.domain_rand.randomize_friction_indep = False
-    Cfg.domain_rand.randomize_ground_friction = False
     Cfg.domain_rand.randomize_base_mass = False
     Cfg.domain_rand.randomize_Kd_factor = False
     Cfg.domain_rand.randomize_Kp_factor = False
@@ -113,7 +111,7 @@ def load_env(label, headless, joystick):
 
 def play_go1(headless, plot, joystick, real_time):
     # label = "gait-conditioned-agility/pretrain-v0/train"
-    label = "gait-conditioned-agility/2025-01-08/train"
+    label = "gait-conditioned-agility/2025-01-11/train"
     env, policy, feasibility_net = load_env(label, headless, joystick)
 
     if joystick:

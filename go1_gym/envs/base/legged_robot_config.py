@@ -80,7 +80,7 @@ class Cfg(PrefixProto, cli=False):
         measure_heights = True
         # 1mx1.6m rectangle (without center line)
         measured_points_x = np.arange(-0.8, 0.81, 0.1)
-        measured_points_y = np.arange(-0.5, 0.61, 0.1)
+        measured_points_y = np.arange(-0.5, 0.51, 0.1)
         measured_points_robot_x = np.arange(-0.25, 0.26, 0.05)
         measured_points_robot_y = np.arange(-0.15, 0.16, 0.05)
         measured_points_feet_x = np.arange(-0.1, 0.101, 0.05)

@@ -88,7 +88,7 @@ def config_go1(Cnfg: Union[Cfg, Meta]):
     _.push_robots = True
     _.max_push_vel_xy = 1.0
     _.randomize_friction = True
-    _.friction_range = [0.5, 1.25] # [0.1, 3.0]
+    _.friction_range = [0.1, 3.0]
     _.randomize_restitution = True
     _.restitution_range = [0.0, 0.4]
     _.restitution = 0.5  # default terrain restitution
@@ -102,3 +102,11 @@ def config_go1(Cnfg: Union[Cfg, Meta]):
     _.kd_factor_range = [-0.2, 0.2]
     _.randomize_lag_timesteps = True
     _.rand_interval_s = 6
+    _.randomize_gravity = True
+    _.gravity_range = [-1.0, 1.0]
+    _.gravity_rand_interval_s = 8.0
+    _.gravity_impulse_duration = 0.99
+    _.randomize_rigids_after_start = False
+    _.randomize_motor_offset = False
+    _.motor_offset_range = [-0.02, 0.02]
+ 

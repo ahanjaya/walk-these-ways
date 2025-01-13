@@ -21,25 +21,16 @@ def train_go1(headless=True):
     Cfg.curriculum_thresholds.tracking_contacts_shaped_force = 0.90
 
     Cfg.commands.distributional_commands = True
-
-    Cfg.domain_rand.randomize_rigids_after_start = False
     Cfg.env.priv_observe_motion = False
     Cfg.env.priv_observe_gravity_transformed_motion = False
-    Cfg.domain_rand.randomize_friction_indep = False
     Cfg.env.priv_observe_friction_indep = False
     Cfg.env.priv_observe_friction = True
     Cfg.env.priv_observe_restitution = True
     Cfg.env.priv_observe_base_mass = False
-    Cfg.domain_rand.randomize_gravity = True
-    Cfg.domain_rand.gravity_range = [-1.0, 1.0]
-    Cfg.domain_rand.gravity_rand_interval_s = 8.0
-    Cfg.domain_rand.gravity_impulse_duration = 0.99
     Cfg.env.priv_observe_gravity = False
     Cfg.env.priv_observe_com_displacement = False
-    Cfg.domain_rand.randomize_ground_friction = True
     Cfg.env.priv_observe_ground_friction = False
     Cfg.env.priv_observe_ground_friction_per_foot = False
-    Cfg.domain_rand.ground_friction_range = [0.0, 0.0]
     Cfg.env.priv_observe_motor_strength = False
     Cfg.domain_rand.randomize_motor_offset = False
     Cfg.domain_rand.motor_offset_range = [-0.02, 0.02]
@@ -187,7 +178,7 @@ def train_go1(headless=True):
     env = HistoryWrapper(env)
     gpu_id = 0
     runner = Runner(env, device=f"cuda:{gpu_id}")
-    runner.learn(num_learning_iterations=50000, init_at_random_ep_len=True)
+    runner.learn(num_learning_iterations=10000, init_at_random_ep_len=True)
 
 
 if __name__ == '__main__':

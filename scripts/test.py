@@ -26,7 +26,6 @@ def run_env(render=False, headless=False):
 
     Cfg.env.priv_observe_motion = False
     Cfg.env.priv_observe_gravity_transformed_motion = True
-    Cfg.domain_rand.randomize_friction_indep = False
     Cfg.env.priv_observe_friction_indep = False
     Cfg.domain_rand.randomize_friction = True
     Cfg.env.priv_observe_friction = False
@@ -45,7 +44,6 @@ def run_env(render=False, headless=False):
     Cfg.domain_rand.randomize_com_displacement = False
     Cfg.domain_rand.com_displacement_range = [-0.15, 0.15]
     Cfg.env.priv_observe_com_displacement = False
-    Cfg.domain_rand.randomize_ground_friction = True
     Cfg.env.priv_observe_ground_friction = False
     Cfg.env.priv_observe_ground_friction_per_foot = False
     Cfg.domain_rand.ground_friction_range = [0.3, 2.0]
