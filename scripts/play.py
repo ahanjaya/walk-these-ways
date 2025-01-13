@@ -12,6 +12,7 @@ from go1_gym.envs import *
 from go1_gym.envs.base.legged_robot_config import Cfg
 from go1_gym.envs.go1.velocity_tracking import VelocityTrackingEasyEnv
 from go1_gym.utils.joystick_utils import JoystickManager
+from go1_gym.utils.tk_sliders import TrackBarSliders
 
 
 def real_time_sleep(start_time, target_dt):
@@ -36,14 +37,14 @@ def load_policy(logdir):
 
         action = body.forward(obs["obs_history"].to("cpu"))
         return action
-    
+
     def feasibility_net(obs, info={}):
         return feasibility.forward(obs["feasibility_obs"].to("cpu"))
 
     return policy, feasibility_net
 
 
-def load_env(label, headless, joystick):
+def load_env(label, headless, interactive):
     dirs = glob.glob(f"../runs/{label}/*")
     logdir = sorted(dirs)[-1]
     print(f"Loading from {logdir}")
@@ -80,22 +81,22 @@ def load_env(label, headless, joystick):
     Cfg.terrain.center_robots = False
     Cfg.terrain.center_span = 1
     Cfg.terrain.teleport_robots = True
-    
+
     # terrain types: [smooth slope, rough slope, stairs up, stairs down, discrete]
     # Cfg.terrain.terrain_proportions = [0.1, 0.1, 0.35, 0.25, 0.2, 0, 0, 0, 0.0] # default
     Cfg.terrain.terrain_proportions = [0.3, 0.3, 0.0, 0.0, 0.4, 0, 0, 0, 0.0]
     # Cfg.terrain.terrain_proportions = [0.0, 0.0, 0.0, 0.0, 0.0, 0, 0, 0, 1.0]
-    
+
     Cfg.terrain.curriculum = False
     Cfg.terrain.measure_heights = True
     Cfg.rewards.use_terminal_body_height = False
 
     Cfg.domain_rand.lag_timesteps = 6
     Cfg.domain_rand.randomize_lag_timesteps = True
-    Cfg.control.control_type = "actuator_net"
+    Cfg.control.control_type = "P"
     Cfg.asset.terminate_after_contacts_on = []
 
-    if joystick:
+    if interactive:
         Cfg.env.episode_length_s = 10000000000
 
     from go1_gym.envs.wrappers.history_wrapper import HistoryWrapper
@@ -109,13 +110,14 @@ def load_env(label, headless, joystick):
     return env, policy, feasibility_net
 
 
-def play_go1(headless, plot, joystick, real_time):
+def play_go1(headless, plot, interactive, real_time):
     # label = "gait-conditioned-agility/pretrain-v0/train"
     label = "gait-conditioned-agility/2025-01-11/train"
-    env, policy, feasibility_net = load_env(label, headless, joystick)
+    env, policy, feasibility_net = load_env(label, headless, interactive)
 
-    if joystick:
+    if interactive:
         joystick_ctrl = JoystickManager(display=True)
+        tk_sliders = TrackBarSliders()
 
     num_eval_steps = 250
     gaits = {
@@ -160,22 +162,35 @@ def play_go1(headless, plot, joystick, real_time):
         env.commands[:, 11] = roll_cmd
         env.commands[:, 12] = stance_width_cmd
 
-        if joystick:
+        if interactive:
             joystick_ctrl.update()
             env.commands[:, 0] = -joystick_ctrl.left_xy[1].item()
             env.commands[:, 1] = -joystick_ctrl.left_xy[0].item()
             env.commands[:, 2] = -joystick_ctrl.right_xy[0].item() * 0.6
             env.commands[:, 5:8] = torch.tensor(gaits[joystick_ctrl.gait_name])
 
+            # Oveerride perception vector with data from sliders to visualize latent space.
+            tb_vals = tk_sliders.get_vals()
+            env.commands[:, 3] = tb_vals["body_height"]
+            env.commands[:, 4] = tb_vals["step_frequency"]
+            env.commands[:, 9] = tb_vals["foot_swing"]
+            env.commands[:, 10] = tb_vals["body_pitch"]
+            env.commands[:, 11] = tb_vals["body_roll"]
+            env.commands[:, 12] = tb_vals["stance_width"]
+            env.commands[:, 13] = tb_vals["stance_length"]
+
+            tk_sliders._tk_root.update()
+
             joystick_ctrl.feasibility_value = feasibility_pred[0].item()
             joystick_ctrl.feasibility_gt = obs["feasibility_targets"][0].item()
+
         obs, rew, done, info = env.step(actions)
 
         if plot:
             measured_x_vels[i] = env.base_lin_vel[0, 0]
             joint_positions[i] = env.dof_pos[0, :].cpu()
             i += 1
-        
+
         if real_time:
             real_time_sleep(start_t, env.dt)
 
@@ -220,4 +235,4 @@ def play_go1(headless, plot, joystick, real_time):
 
 
 if __name__ == "__main__":
-    play_go1(headless=False, plot=False, joystick=True, real_time=True)
+    play_go1(headless=False, plot=False, interactive=True, real_time=True)

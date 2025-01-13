@@ -4,6 +4,8 @@ import sys
 import numpy as np
 import pygame
 
+from enum import IntEnum
+
 
 class DrawProperties:
     def __init__(self, scale: float = 1.0):
@@ -39,6 +41,20 @@ class DrawProperties:
             self.__dict__[attr] = int(self.__dict__[attr] * self.scale)
 
 
+class JoystickButton(IntEnum):
+    BUTTON_A = 0
+    BUTTON_B = 1
+    BUTTON_X = 2
+    BUTTON_Y = 3
+    BUTTON_LB = 4
+    BUTTON_RB = 5
+    BUTTON_BACK = 6
+    BUTTON_START = 7
+    BUTTON_LOGITECH = 8
+    BUTTON_LS = 9
+    BUTTON_RS = 10
+
+
 class JoystickManager:
     def __init__(
         self, display: bool = True, width: int = 500, height: int = 300
@@ -61,8 +77,8 @@ class JoystickManager:
         if self._device == "joystick":
             self.button_states = [False] * self._joystick.get_numbuttons()
         else:
-            self.button_states = [False] * 10
-        
+            self.button_states = [False] * 11
+
         self.gaits = [
             "trotting",
             "pronking",
@@ -149,11 +165,17 @@ class JoystickManager:
         # Shoing current gait
         font = pygame.font.Font(None, 36)
         display_text = font.render(f"Gait: {self.gait_name}", True, (255, 255, 255))
-        display_text_rect = display_text.get_rect(center=(self._width // 2, self._height - 25))
+        display_text_rect = display_text.get_rect(
+            center=(self._width // 2, self._height - 25)
+        )
         self._screen.blit(display_text, display_text_rect)
 
         # Add feasibility value text
-        feasibility_text = font.render(f"Feasibility: {self.feasibility_value:.2f} | {self.feasibility_gt:.2f}", True, (255, 255, 255))
+        feasibility_text = font.render(
+            f"Feasibility: {self.feasibility_value:.2f} | {self.feasibility_gt:.2f}",
+            True,
+            (255, 255, 255),
+        )
         feasibility_text_rect = feasibility_text.get_rect(center=(self._width // 2, 25))
         self._screen.blit(feasibility_text, feasibility_text_rect)
 
@@ -161,6 +183,8 @@ class JoystickManager:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 sys.exit()
+
+        _jb = JoystickButton
 
         if self._device == "joystick":
             self.left_xy[0] = self._joystick.get_axis(0)
@@ -177,12 +201,13 @@ class JoystickManager:
             self.left_xy[1] = keys[pygame.K_s] - keys[pygame.K_w]
             self.right_xy[0] = keys[pygame.K_e] - keys[pygame.K_q]
 
-            self.button_states[0] = keys[pygame.K_SPACE]
+            self.button_states[5] = keys[pygame.K_SPACE]
 
         # detect only when 0 change to 1
         if (
-            self.button_states[0]
-            and self.last_button_states[0] != self.button_states[0]
+            self.button_states[_jb.BUTTON_RB]
+            and self.last_button_states[_jb.BUTTON_RB]
+            != self.button_states[_jb.BUTTON_RB]
         ):
             self.gait_idx = (self.gait_idx + 1) % len(self.gaits)
             self.gait_name = self.gaits[self.gait_idx]
