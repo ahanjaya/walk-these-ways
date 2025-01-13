@@ -27,9 +27,9 @@ def config_go1(Cnfg: Union[Cfg, Meta]):
     }
 
     _ = Cnfg.control
-    _.control_type = 'P'
-    _.stiffness = {'joint': 20.}  # [N*m/rad]
-    _.damping = {'joint': 0.5}  # [N*m*s/rad]
+    _.control_type = "P"
+    _.stiffness = {"joint": 30.0}  # [N*m/rad]
+    _.damping = {"joint": 1.0}  # [N*m*s/rad]
     # action scale: target angle = actionScale * action + defaultAngle
     _.action_scale = 0.25
     _.hip_scale_reduction = 0.5
@@ -97,9 +97,10 @@ def config_go1(Cnfg: Union[Cfg, Meta]):
     _.randomize_com_displacement = True
     _.com_displacement_range = [-0.1, 0.1]
     _.randomize_motor_strength = True
-    _.motor_strength_range = [0.9, 1.1]
-    _.randomize_Kp_factor = False
-    _.Kp_factor_range = [0.8, 1.3]
-    _.randomize_Kd_factor = False
-    _.Kd_factor_range = [0.5, 1.5]
+    _.motor_strength_range = [0.95, 1.05]
+    _.randomize_kp_factor = True
+    _.kp_factor_range = [-3.0, 3.0]
+    _.randomize_kd_factor = True
+    _.kd_factor_range = [-0.2, 0.2]
+    _.randomize_lag_timesteps = True
     _.rand_interval_s = 6

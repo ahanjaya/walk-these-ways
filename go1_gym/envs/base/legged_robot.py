@@ -1099,30 +1099,32 @@ class LeggedRobot(BaseTask):
                 * (max_offset - min_offset)
                 + min_offset
             )
-        if cfg.domain_rand.randomize_Kp_factor:
-            min_Kp_factor, max_Kp_factor = cfg.domain_rand.Kp_factor_range
-            self.Kp_factors[env_ids, :] = (
+        if cfg.domain_rand.randomize_kp_factor:
+            min_kp_factor, max_kp_factor = cfg.domain_rand.kp_factor_range
+            self.kp_factors[env_ids, :] = (
                 torch.rand(
                     len(env_ids),
                     dtype=torch.float,
                     device=self.device,
                     requires_grad=False,
                 ).unsqueeze(1)
-                * (max_Kp_factor - min_Kp_factor)
-                + min_Kp_factor
+                * (max_kp_factor - min_kp_factor)
+                + min_kp_factor
             )
-        if cfg.domain_rand.randomize_Kd_factor:
-            min_Kd_factor, max_Kd_factor = cfg.domain_rand.Kd_factor_range
-            self.Kd_factors[env_ids, :] = (
+            self.p_gains[env_ids, :] = self.default_p_gains[env_ids, :] + self.kp_factors[env_ids, :]
+        if cfg.domain_rand.randomize_kd_factor:
+            min_kd_factor, max_kd_factor = cfg.domain_rand.kd_factor_range
+            self.kd_factors[env_ids, :] = (
                 torch.rand(
                     len(env_ids),
                     dtype=torch.float,
                     device=self.device,
                     requires_grad=False,
                 ).unsqueeze(1)
-                * (max_Kd_factor - min_Kd_factor)
-                + min_Kd_factor
+                * (max_kd_factor - min_kd_factor)
+                + min_kd_factor
             )
+            self.d_gains[env_ids, :] = self.default_d_gains[env_ids, :] + self.kd_factors[env_ids, :]
 
     def _process_rigid_body_props(self, props, env_id):
         self.default_body_mass = props[0].mass
@@ -1553,10 +1555,8 @@ class LeggedRobot(BaseTask):
             self.joint_vel_last = torch.clone(self.joint_vel)
         elif control_type == "P":
             torques = (
-                self.p_gains
-                * self.Kp_factors
-                * (self.joint_pos_target - self.dof_pos + self.motor_offsets)
-                - self.d_gains * self.Kd_factors * self.dof_vel
+                self.p_gains * (actions_scaled + self.default_dof_pos - self.dof_pos)
+                - self.d_gains * self.dof_vel
             )
         else:
             raise NameError(f"Unknown controller type: {control_type}")
@@ -2043,6 +2043,16 @@ class LeggedRobot(BaseTask):
                     )
         self.default_dof_pos = self.default_dof_pos.unsqueeze(0)
 
+        # Extending gains per env to enable randomization.
+        self.p_gains = torch.repeat_interleave(
+            self.p_gains.unsqueeze(0), self.num_envs, dim=0
+        )
+        self.d_gains = torch.repeat_interleave(
+            self.d_gains.unsqueeze(0), self.num_envs, dim=0
+        )
+        self.default_p_gains = self.p_gains.clone()
+        self.default_d_gains = self.d_gains.clone()
+
         if self.cfg.control.control_type == "actuator_net":
             actuator_path = f"{os.path.dirname(os.path.dirname(os.path.realpath(__file__)))}/../../resources/actuator_nets/unitree_go1.pt"
             actuator_network = torch.jit.load(actuator_path).to(self.device)
@@ -2110,14 +2120,14 @@ class LeggedRobot(BaseTask):
             device=self.device,
             requires_grad=False,
         )
-        self.Kp_factors = torch.ones(
+        self.kp_factors = torch.ones(
             self.num_envs,
             self.num_dof,
             dtype=torch.float,
             device=self.device,
             requires_grad=False,
         )
-        self.Kd_factors = torch.ones(
+        self.kd_factors = torch.ones(
             self.num_envs,
             self.num_dof,
             dtype=torch.float,
@@ -2138,8 +2148,8 @@ class LeggedRobot(BaseTask):
             "payloads",
             "com_displacements",
             "motor_strengths",
-            "Kp_factors",
-            "Kd_factors",
+            "kp_factors",
+            "kd_factors",
         ]
         if self.initial_dynamics_dict is not None:
             for k, v in self.initial_dynamics_dict.items():
