@@ -22,40 +22,26 @@ def train_go1(headless=True):
 
     Cfg.commands.distributional_commands = True
 
-    Cfg.domain_rand.lag_timesteps = 6
-    Cfg.domain_rand.randomize_lag_timesteps = True
-    Cfg.control.control_type = "actuator_net"
-
     Cfg.domain_rand.randomize_rigids_after_start = False
     Cfg.env.priv_observe_motion = False
     Cfg.env.priv_observe_gravity_transformed_motion = False
     Cfg.domain_rand.randomize_friction_indep = False
     Cfg.env.priv_observe_friction_indep = False
-    Cfg.domain_rand.randomize_friction = True
     Cfg.env.priv_observe_friction = True
-    Cfg.domain_rand.friction_range = [0.1, 3.0]
-    Cfg.domain_rand.randomize_restitution = True
     Cfg.env.priv_observe_restitution = True
-    Cfg.domain_rand.restitution_range = [0.0, 0.4]
-    Cfg.domain_rand.randomize_base_mass = True
     Cfg.env.priv_observe_base_mass = False
-    Cfg.domain_rand.added_mass_range = [-1.0, 3.0]
     Cfg.domain_rand.randomize_gravity = True
     Cfg.domain_rand.gravity_range = [-1.0, 1.0]
     Cfg.domain_rand.gravity_rand_interval_s = 8.0
     Cfg.domain_rand.gravity_impulse_duration = 0.99
     Cfg.env.priv_observe_gravity = False
-    Cfg.domain_rand.randomize_com_displacement = False
-    Cfg.domain_rand.com_displacement_range = [-0.15, 0.15]
     Cfg.env.priv_observe_com_displacement = False
     Cfg.domain_rand.randomize_ground_friction = True
     Cfg.env.priv_observe_ground_friction = False
     Cfg.env.priv_observe_ground_friction_per_foot = False
     Cfg.domain_rand.ground_friction_range = [0.0, 0.0]
-    Cfg.domain_rand.randomize_motor_strength = True
-    Cfg.domain_rand.motor_strength_range = [0.9, 1.1]
     Cfg.env.priv_observe_motor_strength = False
-    Cfg.domain_rand.randomize_motor_offset = True
+    Cfg.domain_rand.randomize_motor_offset = False
     Cfg.domain_rand.motor_offset_range = [-0.02, 0.02]
     Cfg.env.priv_observe_motor_offset = False
     Cfg.env.priv_observe_Kp_factor = False
@@ -201,7 +187,7 @@ def train_go1(headless=True):
     env = HistoryWrapper(env)
     gpu_id = 0
     runner = Runner(env, device=f"cuda:{gpu_id}")
-    runner.learn(num_learning_iterations=100000, init_at_random_ep_len=True)
+    runner.learn(num_learning_iterations=50000, init_at_random_ep_len=True)
 
 
 if __name__ == '__main__':
@@ -210,8 +196,11 @@ if __name__ == '__main__':
     from go1_gym import MINI_GYM_ROOT_DIR
 
     stem = Path(__file__).stem
-    logger.configure(logger.utcnow(f'gait-conditioned-agility/%Y-%m-%d/{stem}/%H%M%S.%f'),
-                     root=Path(f"{MINI_GYM_ROOT_DIR}/runs").resolve(), )
+    logger.configure(
+        logger.utcnow(f'gait-conditioned-agility/%Y-%m-%d/{stem}/%H%M%S.%f'),
+        root=Path(f"{MINI_GYM_ROOT_DIR}/runs").resolve(), 
+    )
+
     logger.log_text("""
                 charts: 
                 - yKey: train/episode/rew_total/mean
@@ -228,16 +217,12 @@ if __name__ == '__main__':
                   xKey: iterations
                 - yKey: train/episode/rew_orientation_control/mean
                   xKey: iterations
-                - yKey: train/episode/rew_dof_pos/mean
-                  xKey: iterations
                 - yKey: train/episode/command_area_trot/mean
                   xKey: iterations
                 - yKey: train/episode/terrain_level/mean
                   xKey: iterations
                 - type: video
                   glob: "videos/*.mp4"
-                - yKey: adaptation_loss/mean
-                  xKey: iterations
                 - yKey: feasibility_loss/mean
                   xKey: iterations
                 """, filename=".charts.yml", dedent=True)

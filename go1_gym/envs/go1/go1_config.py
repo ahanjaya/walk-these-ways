@@ -10,20 +10,18 @@ def config_go1(Cnfg: Union[Cfg, Meta]):
 
     _.pos = [0.0, 0.0, 0.34]  # x,y,z [m]
     _.default_joint_angles = {  # = target angles [rad] when action = 0.0
-        'FL_hip_joint': 0.1,  # [rad]
-        'RL_hip_joint': 0.1,  # [rad]
-        'FR_hip_joint': -0.1,  # [rad]
-        'RR_hip_joint': -0.1,  # [rad]
-
-        'FL_thigh_joint': 0.8,  # [rad]
-        'RL_thigh_joint': 1.,  # [rad]
-        'FR_thigh_joint': 0.8,  # [rad]
-        'RR_thigh_joint': 1.,  # [rad]
-
-        'FL_calf_joint': -1.5,  # [rad]
-        'RL_calf_joint': -1.5,  # [rad]
-        'FR_calf_joint': -1.5,  # [rad]
-        'RR_calf_joint': -1.5  # [rad]
+        "FL_hip_joint": 0.1,  # [rad]
+        "RL_hip_joint": 0.1,  # [rad]
+        "FR_hip_joint": -0.1,  # [rad]
+        "RR_hip_joint": -0.1,  # [rad]
+        "FL_thigh_joint": 0.8,  # [rad]
+        "RL_thigh_joint": 1.0,  # [rad]
+        "FR_thigh_joint": 0.8,  # [rad]
+        "RR_thigh_joint": 1.0,  # [rad]
+        "FL_calf_joint": -1.5,  # [rad]
+        "RL_calf_joint": -1.5,  # [rad]
+        "FR_calf_joint": -1.5,  # [rad]
+        "RR_calf_joint": -1.5,  # [rad]
     }
 
     _ = Cnfg.control
@@ -55,11 +53,11 @@ def config_go1(Cnfg: Union[Cfg, Meta]):
     _.torques = -0.0001
     _.action_rate = -0.01
     _.dof_pos_limits = -10.0
-    _.orientation = -5.
-    _.base_height = -30.
+    _.orientation = -5.0
+    _.base_height = -30.0
 
     _ = Cnfg.terrain
-    _.mesh_type = 'trimesh'
+    _.mesh_type = "trimesh"
     _.measure_heights = True
     _.terrain_noise_magnitude = 0.0
     _.teleport_robots = True
@@ -86,16 +84,16 @@ def config_go1(Cnfg: Union[Cfg, Meta]):
 
     _ = Cnfg.domain_rand
     _.randomize_base_mass = True
-    _.added_mass_range = [-1, 3]
-    _.push_robots = False
-    _.max_push_vel_xy = 0.5
+    _.added_mass_range = [-1.5, 1.5]
+    _.push_robots = True
+    _.max_push_vel_xy = 1.0
     _.randomize_friction = True
-    _.friction_range = [0.05, 4.5]
+    _.friction_range = [0.5, 1.25] # [0.1, 3.0]
     _.randomize_restitution = True
-    _.restitution_range = [0.0, 1.0]
+    _.restitution_range = [0.0, 0.4]
     _.restitution = 0.5  # default terrain restitution
     _.randomize_com_displacement = True
-    _.com_displacement_range = [-0.1, 0.1]
+    _.com_displacement_range = [-0.15, 0.15]
     _.randomize_motor_strength = True
     _.motor_strength_range = [0.95, 1.05]
     _.randomize_kp_factor = True

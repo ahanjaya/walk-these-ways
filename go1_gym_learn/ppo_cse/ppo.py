@@ -33,6 +33,7 @@ class PPO_Args(PrefixProto):
 
 class PPO:
     actor_critic: ActorCritic
+
     def __init__(self, actor_critic, feasibility_net, device="cpu"):
         self.device = device
 
@@ -281,9 +282,7 @@ class PPO:
             #     mean_adaptation_module_test_loss += adaptation_test_loss.item()
 
             # Feasibility Module
-            feasibility_pred = self.feasibility_net(
-                feasibility_obs_batch
-            )
+            feasibility_pred = self.feasibility_net(feasibility_obs_batch)
             feasibility_loss = F.mse_loss(feasibility_pred, feasibility_targets_batch)
             self.feasibility_module_optimizer.zero_grad()
             feasibility_loss.backward()
@@ -299,7 +298,7 @@ class PPO:
         mean_feasibility_module_loss /= num_updates
         # mean_decoder_loss /= num_updates * PPO_Args.num_adaptation_module_substeps
         # mean_decoder_loss_student /= (
-            # num_updates * PPO_Args.num_adaptation_module_substeps
+        # num_updates * PPO_Args.num_adaptation_module_substeps
         # )
         # mean_adaptation_module_test_loss /= (
         #     num_updates * PPO_Args.num_adaptation_module_substeps
