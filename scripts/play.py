@@ -1,7 +1,5 @@
 import isaacgym
 
-assert isaacgym
-import glob
 import pickle
 import time
 
@@ -23,9 +21,9 @@ def real_time_sleep(start_time, target_dt):
         time.sleep(diff_to_target_period)
 
 
-def load_policy(logdir):
-    body = torch.jit.load(logdir + "/checkpoints/wtw_policy.pt")
-    feasibility = torch.jit.load(logdir + "/checkpoints/wtw_feasibility.pt")
+def load_policy(checkpoint):
+    body = torch.jit.load(checkpoint + "/checkpoints/wtw_policy.pt")
+    feasibility = torch.jit.load(checkpoint + "/checkpoints/wtw_feasibility.pt")
     # adaptation_module = torch.jit.load(
     #     logdir + "/checkpoints/adaptation_module_latest.jit"
     # )
@@ -44,17 +42,12 @@ def load_policy(logdir):
     return policy, feasibility_net
 
 
-def load_env(label, headless, interactive):
-    dirs = glob.glob(f"../runs/{label}/*")
-    logdir = sorted(dirs)[-1]
-    print(f"Loading from {logdir}")
+def load_env(checkpoint, headless, interactive):
+    print(f"Loading from: {checkpoint}")
 
-    with open(logdir + "/parameters.pkl", "rb") as file:
+    with open(checkpoint + "/parameters.pkl", "rb") as file:
         pkl_cfg = pickle.load(file)
-        print(pkl_cfg.keys())
         cfg = pkl_cfg["Cfg"]
-        print(cfg.keys())
-
         for key, value in cfg.items():
             if hasattr(Cfg, key):
                 for key2, value2 in cfg[key].items():
@@ -105,15 +98,19 @@ def load_env(label, headless, interactive):
     env = HistoryWrapper(env)
 
     # load policy
-    policy, feasibility_net = load_policy(logdir)
+    policy, feasibility_net = load_policy(checkpoint)
 
     return env, policy, feasibility_net
 
 
-def play_go1(headless, plot, interactive, real_time):
-    # label = "gait-conditioned-agility/pretrain-v0/train"
-    label = "gait-conditioned-agility/2025-01-11/train"
-    env, policy, feasibility_net = load_env(label, headless, interactive)
+def play_go1(args):
+    headless = args.headless
+    plot = args.plot
+    interactive = args.interactive
+    real_time = args.real_time
+    checkpoint = args.checkpoint
+
+    env, policy, feasibility_net = load_env(checkpoint, headless, interactive)
 
     if interactive:
         joystick_ctrl = JoystickManager(display=True)
@@ -235,4 +232,20 @@ def play_go1(headless, plot, interactive, real_time):
 
 
 if __name__ == "__main__":
-    play_go1(headless=False, plot=False, interactive=True, real_time=True)
+    import argparse
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--headless", action="store_true", help="Run in headless mode")
+    parser.add_argument("--plot", action="store_true", help="Plot results")
+    parser.add_argument(
+        "--interactive", default=True, action="store_true", help="Interactive mode"
+    )
+    parser.add_argument(
+        "--real_time", default=True, action="store_true", help="Real time mode"
+    )
+    parser.add_argument(
+        "--checkpoint", type=str, required=True, help="Label of the run to load"
+    )
+    args = parser.parse_args()
+
+    play_go1(args)
