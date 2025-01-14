@@ -78,10 +78,6 @@ def run_env(render=False, headless=False):
     Cfg.env.observe_timing_parameter = False
     Cfg.env.observe_clock_inputs = True
 
-    Cfg.domain_rand.tile_height_range = [-0.0, 0.0]
-    Cfg.domain_rand.tile_height_curriculum = False
-    Cfg.domain_rand.tile_height_update_interval = 1000, 3000
-    Cfg.domain_rand.tile_height_curriculum_step = 0.01
     Cfg.terrain.border_size = 0.0
 
     Cfg.commands.resampling_time = 10
