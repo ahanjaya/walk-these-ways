@@ -24,7 +24,7 @@ def train_go1(headless=True):
 
     env = HistoryWrapper(env)
     runner = Runner(env, device=f"cuda:0")
-    runner.learn(num_learning_iterations=20000, init_at_random_ep_len=True)
+    runner.learn(num_learning_iterations=30000, init_at_random_ep_len=True)
 
 
 if __name__ == '__main__':

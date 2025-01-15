@@ -12,7 +12,7 @@ class TrackBarSliders:
         self._trackbars = [
             ["body_height", [-0.25, 0.15], 0.0],
             ["step_frequency", [2.0, 4.0], 3.0],
-            ["gait_duration", [0.5, 0.5], 0.5],
+            ["gait_duration", [0.1, 1.0], 0.5],
             ["foot_swing", [0.03, 0.35], 0.08],
             ["body_pitch", [-0.4, 0.4], 0.0],
             ["body_roll", [-0.4, 0.4], 0.0],
