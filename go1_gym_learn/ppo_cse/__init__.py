@@ -123,6 +123,59 @@ class Runner:
 
         self.env.reset()
 
+    def save_checkpoint(self, iteration, wtw_policy_fn, wtw_feasibility_fn):
+        with logger.Sync():
+            logger.torch_save(
+                self.alg.actor_critic.state_dict(),
+                f"checkpoints/ac_weights_{iteration:06d}.pt",
+            )
+            logger.duplicate(
+                f"checkpoints/ac_weights_{iteration:06d}.pt",
+                f"checkpoints/ac_weights_last.pt",
+            )
+
+            path = "./tmp/legged_data"
+            os.makedirs(path, exist_ok=True)
+
+            # adaptation_module_path = f"{path}/adaptation_module_latest.jit"
+            # adaptation_module = copy.deepcopy(
+            #     self.alg.actor_critic.adaptation_module
+            # ).to("cpu")
+            # traced_script_adaptation_module = torch.jit.script(
+            #     adaptation_module
+            # )
+            # traced_script_adaptation_module.save(adaptation_module_path)
+
+            feasibility_module_path = f"{path}/{wtw_feasibility_fn}"
+            feasibility_module = copy.deepcopy(
+                self.alg.feasibility_net
+            ).to("cpu")
+            traced_feasibility_module = torch.jit.script(
+                feasibility_module
+            )
+            traced_feasibility_module.save(feasibility_module_path)
+
+            policy_path = f"{path}/{wtw_policy_fn}"
+            policy_model = copy.deepcopy(self.alg.actor_critic.actor_body).to(
+                "cpu"
+            )
+            traced_policy_module = torch.jit.script(policy_model)
+            traced_policy_module.save(policy_path)
+
+            # logger.upload_file(
+            #     file_path=adaptation_module_path,
+            #     target_path=f"checkpoints/",
+            #     once=False,
+            # )
+            logger.upload_file(
+                file_path=feasibility_module_path,
+                target_path=f"checkpoints/",
+                once=False,
+            )
+            logger.upload_file(
+                file_path=policy_path, target_path=f"checkpoints/", once=False
+            )
+
     def learn(
         self,
         num_learning_iterations,
@@ -312,105 +365,15 @@ class Runner:
                 )
                 logger.job_running()
 
+            wtw_policy_fn = "wtw_policy.pt"
+            wtw_feasibility_fn = "wtw_feasibility.pt"
+
             if it % RunnerArgs.save_interval == 0:
-                with logger.Sync():
-                    logger.torch_save(
-                        self.alg.actor_critic.state_dict(),
-                        f"checkpoints/ac_weights_{it:06d}.pt",
-                    )
-                    logger.duplicate(
-                        f"checkpoints/ac_weights_{it:06d}.pt",
-                        f"checkpoints/ac_weights_last.pt",
-                    )
-
-                    path = "./tmp/legged_data"
-                    os.makedirs(path, exist_ok=True)
-
-                    # adaptation_module_path = f"{path}/adaptation_module_latest.jit"
-                    # adaptation_module = copy.deepcopy(
-                    #     self.alg.actor_critic.adaptation_module
-                    # ).to("cpu")
-                    # traced_script_adaptation_module = torch.jit.script(
-                    #     adaptation_module
-                    # )
-                    # traced_script_adaptation_module.save(adaptation_module_path)
-
-                    feasibility_module_path = f"{path}/wtw_feasibility.pt"
-                    feasibility_module = copy.deepcopy(
-                        self.alg.feasibility_net
-                    ).to("cpu")
-                    traced_script_feasibility_module = torch.jit.script(
-                        feasibility_module
-                    )
-                    traced_script_feasibility_module.save(feasibility_module_path)
-
-                    body_path = f"{path}/wtw_policy.pt"
-                    body_model = copy.deepcopy(self.alg.actor_critic.actor_body).to(
-                        "cpu"
-                    )
-                    traced_script_body_module = torch.jit.script(body_model)
-                    traced_script_body_module.save(body_path)
-
-                    # logger.upload_file(
-                    #     file_path=adaptation_module_path,
-                    #     target_path=f"checkpoints/",
-                    #     once=False,
-                    # )
-                    logger.upload_file(
-                        file_path=feasibility_module_path,
-                        target_path=f"checkpoints/",
-                        once=False,
-                    )
-                    logger.upload_file(
-                        file_path=body_path, target_path=f"checkpoints/", once=False
-                    )
+                self.save_checkpoint(it, wtw_policy_fn, wtw_feasibility_fn)
 
             self.current_learning_iteration += num_learning_iterations
 
-        with logger.Sync():
-            logger.torch_save(
-                self.alg.actor_critic.state_dict(),
-                f"checkpoints/ac_weights_{it:06d}.pt",
-            )
-            logger.duplicate(
-                f"checkpoints/ac_weights_{it:06d}.pt", f"checkpoints/ac_weights_last.pt"
-            )
-
-            path = "./tmp/legged_data"
-            os.makedirs(path, exist_ok=True)
-
-            # adaptation_module_path = f"{path}/adaptation_module_latest.jit"
-            # adaptation_module = copy.deepcopy(
-            #     self.alg.actor_critic.adaptation_module
-            # ).to("cpu")
-            # traced_script_adaptation_module = torch.jit.script(adaptation_module)
-            # traced_script_adaptation_module.save(adaptation_module_path)
-
-            feasibility_module_path = f"{path}/feasibility_module_latest.jit"
-            feasibility_module = copy.deepcopy(
-                self.alg.feasibility_net
-            ).to("cpu")
-            traced_script_feasibility_module = torch.jit.script(feasibility_module)
-            traced_script_feasibility_module.save(feasibility_module_path)
-
-            body_path = f"{path}/body_latest.jit"
-            body_model = copy.deepcopy(self.alg.actor_critic.actor_body).to("cpu")
-            traced_script_body_module = torch.jit.script(body_model)
-            traced_script_body_module.save(body_path)
-
-            # logger.upload_file(
-            #     file_path=adaptation_module_path,
-            #     target_path=f"checkpoints/",
-            #     once=False,
-            # )
-            logger.upload_file(
-                file_path=feasibility_module_path,
-                target_path=f"checkpoints/",
-                once=False,
-            )
-            logger.upload_file(
-                file_path=body_path, target_path=f"checkpoints/", once=False
-            )
+        self.save_checkpoint(it, wtw_policy_fn, wtw_feasibility_fn)
 
     def log_video(self, it):
         if it - self.last_recording_it >= RunnerArgs.save_video_interval:
