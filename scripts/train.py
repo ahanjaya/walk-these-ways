@@ -34,7 +34,7 @@ if __name__ == '__main__':
 
     stem = Path(__file__).stem
     logger.configure(
-        logger.utcnow(f'gait-conditioned-agility/%Y-%m-%d/{stem}/%H%M%S.%f'),
+        logger.now(f'gait-conditioned-agility/%Y-%m-%d/{stem}/%H-%M-%S'),
         root=Path(f"{MINI_GYM_ROOT_DIR}/runs").resolve(), 
     )
 
