@@ -1601,14 +1601,11 @@ class LeggedRobot(BaseTask):
                 -1.0, 1.0, (len(env_ids), 2), device=self.device
             )  # xy position within 1m of the center
 
-            # self.root_states[env_ids, 0:1] += torch_rand_float(-cfg.terrain.x_init_range,
-            #                                                    cfg.terrain.x_init_range, (len(env_ids), 1),
-            #                                                    device=self.device)
-            # self.root_states[env_ids, 1:2] += torch_rand_float(-cfg.terrain.y_init_range,
-            #                                                    cfg.terrain.y_init_range, (len(env_ids), 1),
-            #                                                    device=self.device)
-            # self.root_states[env_ids, 0] += cfg.terrain.x_init_offset
-            # self.root_states[env_ids, 1] += cfg.terrain.y_init_offset
+            # height
+            height_map_under_robot = self._get_heights(
+                env_ids, self.height_points_under_robot, self.num_height_points_under_robot, cfg
+            )
+            self.root_states[env_ids, 2] = self.base_init_state[2] + torch.mean(height_map_under_robot, dim=1)
         else:
             self.root_states[env_ids] = self.base_init_state
             self.root_states[env_ids, :3] += self.env_origins[env_ids]
