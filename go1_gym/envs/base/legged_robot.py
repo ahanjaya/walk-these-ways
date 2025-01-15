@@ -812,9 +812,10 @@ class LeggedRobot(BaseTask):
             )
 
         if self.cfg.env.priv_observe_height_scan:
+            center_height = self.measured_heights[:, self.height_points_center_idx].unsqueeze(1)
             heights = (
                 torch.clip(
-                    self.root_states[:, 2].unsqueeze(1) - 0.5 - self.measured_heights,
+                    center_height - self.measured_heights,
                     -1.0,
                     1.0,
                 )
@@ -836,9 +837,10 @@ class LeggedRobot(BaseTask):
                 dim=-1,
             )
         if self.cfg.env.feasible_observe_height_scan:
+            center_height = self.measured_heights[:, self.height_points_center_idx].unsqueeze(1)
             heights = (
                 torch.clip(
-                    self.root_states[:, 2].unsqueeze(1) - 0.5 - self.measured_heights,
+                    center_height - self.measured_heights,
                     -1.0,
                     1.0,
                 )
@@ -1867,6 +1869,7 @@ class LeggedRobot(BaseTask):
                 self.cfg.terrain.measured_points_x,
                 self.cfg.terrain.measured_points_y,
             )
+            self.height_points_center_idx = self.num_height_points // 2
             self.height_points_under_robot, self.num_height_points_under_robot = (
                 self._init_height_points(
                     torch.arange(self.num_envs, device=self.device),
