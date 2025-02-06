@@ -44,15 +44,43 @@ if __name__ == '__main__':
                   xKey: iterations
                 - yKey: train/episode/rew_tracking_lin_vel/mean
                   xKey: iterations
+                - yKey: train/episode/rew_tracking_ang_vel/mean
+                  xKey: iterations
                 - yKey: train/episode/rew_tracking_contacts_shaped_force/mean
+                  xKey: iterations
+                - yKey: train/episode/rew_tracking_contacts_shaped_vel/mean
                   xKey: iterations
                 - yKey: train/episode/rew_action_smoothness_1/mean
                   xKey: iterations
                 - yKey: train/episode/rew_action_smoothness_2/mean
                   xKey: iterations
-                - yKey: train/episode/rew_tracking_contacts_shaped_vel/mean
+                - yKey: train/episode/rew_torques/mean
+                  xKey: iterations
+                - yKey: train/episode/rew_action_rate/mean
+                  xKey: iterations
+                - yKey: train/episode/rew_dof_pos_limits/mean
+                  xKey: iterations
+                - yKey: train/episode/rew_orientation/mean
+                  xKey: iterations
+                - yKey: train/episode/rew_feet_slip/mean
+                  xKey: iterations
+                - yKey: train/episode/rew_dof_vel/mean
+                  xKey: iterations
+                - yKey: train/episode/rew_dof_acc/mean
+                  xKey: iterations
+                - yKey: train/episode/rew_jump/mean
+                  xKey: iterations
+                - yKey: train/episode/rew_raibert_heuristic/mean
+                  xKey: iterations
+                - yKey: train/episode/rew_feet_clearance_cmd_linear/mean
                   xKey: iterations
                 - yKey: train/episode/rew_orientation_control/mean
+                  xKey: iterations
+                - yKey: train/episode/rew_lin_vel_z/mean
+                  xKey: iterations
+                - yKey: train/episode/rew_ang_vel_xy/mean
+                  xKey: iterations
+                - yKey: train/episode/rew_collision/mean
                   xKey: iterations
                 - yKey: train/episode/command_area_trot/mean
                   xKey: iterations
